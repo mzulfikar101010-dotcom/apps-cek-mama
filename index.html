@@ -146,6 +146,8 @@ details summary{cursor:pointer;font-weight:600}
       <div class="checks">
         <label><input type="checkbox" id="fPaidOnly"> Hanya yang uangnya sudah cair (&gt; Rp0)</label>
         <label><input type="checkbox" id="fIncludeUnpaid"> Sertakan pesanan yang belum ada di file income</label>
+        <label><input type="checkbox" id="fShowExcl"> Tampilkan juga produk yang dikecualikan</label>
+        <span id="exclInfo" style="color:var(--muted);font-size:12.5px"></span>
         <button class="btn" id="btnReset" style="margin-left:auto">Reset filter</button>
       </div>
     </div>
@@ -180,6 +182,30 @@ details summary{cursor:pointer;font-weight:600}
 
 <script>
 "use strict";
+/* ===== DAFTAR PRODUK YANG DIKECUALIKAN (tidak dibaca) =====
+   Mau tambah/hapus produk? Edit daftar ini, satu nama per baris.
+   Pencocokan tidak peduli huruf besar/kecil dan spasi ganda. */
+const EXCLUDED=[
+  "PAKET ASOY ISI 7 SPESIAL JAJAN LEBARAN",
+  "PAKET EKO ISI 6 spesial jajan lebaran",
+  "PAKET GOOD 5 PCS JAJAN ASUL-ASUL + BONUS TAS ESTETIK MURAH MERIAH",
+  "PAKET GOOD ISI 7 spesial jajan lebaran",
+  "PAKET HAPPY ISI 6 spesial jajan lebaran Snack Food Makanan Manis",
+  "PAKET JOS ISI 4 spesial jajan lebaran",
+  "PAKET JOSJIS 6 PCS JAJAN ASUL-ASUL + BONUS TAS ESTETIK MURAH MERIAH KADO",
+  "PAKET MANTAP 6 PCS JAJAN ASUL-ASUL + BONUS TAS ESTETIK MURAH MERIAH",
+  "PAKET NICE ISI 5 spesial jajan lebaran",
+  "PAKET NICE ISI 6 spesial jajan lebaran",
+  "PAKET NICE ISI 7 spesial jajan lebaran Food Snack Makanan Manis",
+  "PAKET OKE ISI 6 spesial jajan lebarann",
+  "PAKET SIAP ISI 7 spesial jajan lebaran",
+  "PAKET SIP ISI 5 spesial jajan lebaran",
+  "PAKET SIP ISI 6 spesial jajan lebaran  Manis  Cemilan",
+  "PAKET YES ISI 6 spesial jajan lebaran",
+  "PAKET YOI ISI 6 spesial jajan lebaran  Manis  Cemilan"
+];
+const normName=s=>String(s).replace(/\s+/g,' ').trim().toLowerCase();
+const EXCL_SET=new Set(EXCLUDED.map(normName));
 const state={income:null,orders:null,rows:[],filtered:[],sortKey:'tglBayar',sortDir:-1,page:1,perPage:100,tab:'detail',status:'Semua'};
 const $=id=>document.getElementById(id);
 const rp=n=>'Rp'+new Intl.NumberFormat('id-ID').format(Math.round(n||0));
@@ -300,7 +326,11 @@ function rebuild(){
       rows.push({id,produk:o.produk,status:o.status,bayar:0,tglBuat:o.tglBuat,tglBayar:'',inIncome:false});
     }
   }
-  state.rows=rows;
+  const showEx=$('fShowExcl').checked;
+  const kept=showEx?rows:rows.filter(r=>!EXCL_SET.has(normName(r.produk)));
+  const hidden=rows.length-kept.length;
+  $('exclInfo').textContent=showEx?'':(hidden+' baris dari '+EXCLUDED.length+' produk dikecualikan disembunyikan');
+  state.rows=kept;
   $('app').style.display='block';
   buildProdukList();
   if(!ord&&inc)notice('File Semua pesanan belum diupload, nama produk belum bisa tampil.');
@@ -405,6 +435,7 @@ function renderGroup(kind){
 let t;
 $('fSearch').addEventListener('input',()=>{clearTimeout(t);t=setTimeout(()=>{state.page=1;applyFilters()},200)});
 ['fPayFrom','fPayTo','fOrdFrom','fOrdTo','fPaidOnly','fIncludeUnpaid'].forEach(id=>$(id).addEventListener('change',()=>{state.page=1;applyFilters()}));
+$('fShowExcl').addEventListener('change',()=>{if(state.income||state.orders){state.page=1;rebuild()}});
 $('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.status=b.dataset.s;state.page=1;applyFilters()});
 $('btnReset').addEventListener('click',()=>{
   ['fSearch','fPayFrom','fPayTo','fOrdFrom','fOrdTo'].forEach(id=>$(id).value='');
