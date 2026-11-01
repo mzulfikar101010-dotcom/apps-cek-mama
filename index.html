@@ -202,7 +202,14 @@ const EXCLUDED=[
   "PAKET SIP ISI 5 spesial jajan lebaran",
   "PAKET SIP ISI 6 spesial jajan lebaran  Manis  Cemilan",
   "PAKET YES ISI 6 spesial jajan lebaran",
-  "PAKET YOI ISI 6 spesial jajan lebaran  Manis  Cemilan"
+  "PAKET YOI ISI 6 spesial jajan lebaran  Manis  Cemilan",
+  "PAKET PARCEL ISI 6 spesial jajan lebaran",
+  "PAKET REZA ISI 6 SPESIAL JAJAN LEBARAN",
+  "PAKET LOVE ISI 6 SPESIAL JAJAN LEBARAN",
+  "PAKET PREMIUM ISI 6 SPESIAL JAJAN LEBARAN",
+  "PAKET BEST ISI 6 BONUS KERANJANG SPESIAL JAJAN LEBARAN",
+  "PAKET ENDUL ISI 5 BONUS TAS SPESIAL JAJAN LEBARAN",
+  "PAKET SABENA ISI 6 SPESIAL JAJAN LEBARAN"
 ];
 const normName=s=>String(s).replace(/\s+/g,' ').trim().toLowerCase();
 const EXCL_SET=new Set(EXCLUDED.map(normName));
@@ -298,9 +305,10 @@ function parseOrders(rows,h){
     let nama=String(r[c['Product Name']]??'').trim();
     const varia=String(r[c['Variation']]??'').trim();
     if(varia&&varia.toLowerCase()!=='default')nama+=' ('+varia+')';
+    const base=String(r[c['Product Name']]??'').trim();
     const o=map.get(id);
-    if(o){if(!o.produk.includes(nama))o.produk+=' + '+nama}
-    else map.set(id,{id,produk:nama,status:String(r[c['Order Status']]??'').trim(),tglBuat:toIso(r[c['Created Time']])});
+    if(o){if(!o.produk.includes(nama))o.produk+=' + '+nama;o.bases.push(base)}
+    else map.set(id,{id,produk:nama,bases:[base],status:String(r[c['Order Status']]??'').trim(),tglBuat:toIso(r[c['Created Time']])});
   }
   state.orders=map;
 }
@@ -317,17 +325,17 @@ function rebuild(){
       if(i.jenis&&i.jenis!=='Pesanan'){status=i.jenis;produk=o?o.produk:'(penyesuaian, bukan pesanan)'}
       else if(o){status=o.status||'Tidak diketahui';produk=o.produk}
       else{status='Tidak ada di file pesanan';produk=ord?'(order tidak ditemukan di file Semua pesanan)':'(upload file Semua pesanan)'}
-      rows.push({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true});
+      rows.push({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true,bases:o?o.bases:[produk]});
     }
   }
   if(ord){
     for(const [id,o] of ord){
       if(inc&&inc.has(id))continue;
-      rows.push({id,produk:o.produk,status:o.status,bayar:0,tglBuat:o.tglBuat,tglBayar:'',inIncome:false});
+      rows.push({id,produk:o.produk,status:o.status,bayar:0,tglBuat:o.tglBuat,tglBayar:'',inIncome:false,bases:o.bases});
     }
   }
   const showEx=$('fShowExcl').checked;
-  const kept=showEx?rows:rows.filter(r=>!EXCL_SET.has(normName(r.produk)));
+  const kept=showEx?rows:rows.filter(r=>!(r.bases.length&&r.bases.every(x=>EXCL_SET.has(normName(x)))));
   const hidden=rows.length-kept.length;
   $('exclInfo').textContent=showEx?'':(hidden+' baris dari '+EXCLUDED.length+' produk dikecualikan disembunyikan');
   state.rows=kept;
