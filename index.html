@@ -37,7 +37,7 @@ h1{font-size:20px;margin:0 0 4px}
 .stat strong{font-size:20px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
 .filters{display:grid;grid-template-columns:2fr 1fr 1.4fr;gap:10px;margin-bottom:10px}
-.dates{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.dates{display:grid;grid-template-columns:repeat(2,minmax(0,380px));gap:10px;margin-bottom:10px}
 label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
 input,select,button{font:inherit;color:var(--text)}
 input[type=text],input[type=date],input[type=url],input[type=password],select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
@@ -74,6 +74,40 @@ td.id{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;white-s
 details summary{cursor:pointer;font-weight:600}
 .grid2{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;margin-top:10px;align-items:end}
 .hint{color:var(--muted);font-size:12px;margin-top:8px}
+
+:root{--teal:#0f9b95;--teal-soft:#d9eeee}
+@media (prefers-color-scheme:dark){:root{--teal:#1fa8a1;--teal-soft:#1d3b3b}}
+.rp{position:relative}
+.rp-field{width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;text-align:left}
+.rp-field:hover,.rp.open .rp-field{border-color:var(--teal)}
+.rp-t{flex:none;min-width:80px}
+.rp-t.ph{color:var(--muted)}
+.rp-sep{color:var(--muted)}
+.rp-sp{flex:1}
+.rp-x{display:none;color:var(--muted);padding:0 5px;border-radius:4px;font-size:12px}
+.rp-x:hover{background:var(--gray-bg);color:var(--text)}
+.rp.has .rp-x{display:inline}
+.rp-ic{color:var(--muted);flex:none}
+.rp-pop{display:none;position:absolute;z-index:30;top:100%;left:0;margin-top:4px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:12px 0;width:max-content;max-width:94vw}
+.rp-pop.right{left:auto;right:0}
+.rp.open .rp-pop{display:block}
+.rp-cals{display:grid;grid-template-columns:1fr 1fr}
+.rp-cal{padding:0 14px;width:274px}
+.rp-cal+.rp-cal{border-left:1px solid var(--line)}
+.rp-head{display:grid;grid-template-columns:64px 1fr 64px;align-items:center;height:32px;margin-bottom:4px;font-weight:600}
+.rp-head .ttl{text-align:center}
+.rp-head span:last-child{text-align:right}
+.rp-head .nav{background:none;border:0;cursor:pointer;color:var(--muted);font-size:17px;padding:2px 6px;border-radius:6px;line-height:1}
+.rp-head .nav:hover{background:var(--gray-bg);color:var(--text)}
+.rp-wd,.rp-days{display:grid;grid-template-columns:repeat(7,1fr)}
+.rp-wd span{text-align:center;font-size:12px;font-weight:600;color:var(--muted);padding:4px 0}
+.rp-days button{height:34px;border:0;background:transparent;color:var(--text);cursor:pointer;font:inherit;font-variant-numeric:tabular-nums;position:relative;margin:1px 0;padding:0;border-radius:0}
+.rp-days button:hover:not(.out):not(.dis):not(.dark){background:var(--gray-bg);border-radius:6px}
+.rp-days button.out{color:var(--muted);opacity:.45;cursor:default}
+.rp-days button.dis{color:var(--muted);opacity:.6;background:var(--gray-bg);cursor:not-allowed}
+.rp-days button.inr{background:var(--teal-soft);border-radius:0}
+.rp-days button.dark{background:var(--teal);color:#fff;font-weight:700;border-radius:6px}
+.rp-days button.today::after{content:"";position:absolute;left:50%;bottom:4px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
 .msel{position:relative}
 .msel-btn{width:100%;text-align:left;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;display:flex;justify-content:space-between;gap:8px}
 .msel-btn.partial{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
@@ -90,7 +124,10 @@ details summary{cursor:pointer;font-weight:600}
 @media (max-width:760px){
   .drops,.filters,.grid2{grid-template-columns:1fr}
   .cards{grid-template-columns:1fr 1fr}
-  .dates{grid-template-columns:1fr 1fr}
+  .dates{grid-template-columns:1fr}
+  .rp-cals{grid-template-columns:1fr!important}
+  .rp-cal{width:auto!important}
+  .rp-cal+.rp-cal{border-left:0!important;border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
 }
 </style>
 </head>
@@ -138,10 +175,8 @@ details summary{cursor:pointer;font-weight:600}
         <div><label>Status pesanan</label><div class="chips" id="chips"></div></div>
       </div>
       <div class="dates">
-        <div><label>Tgl pembayaran dari</label><input type="date" id="fPayFrom"></div>
-        <div><label>Tgl pembayaran sampai</label><input type="date" id="fPayTo"></div>
-        <div><label>Tgl pesanan dari</label><input type="date" id="fOrdFrom"></div>
-        <div><label>Tgl pesanan sampai</label><input type="date" id="fOrdTo"></div>
+        <div id="rpPay"><label>Tanggal pembayaran</label></div>
+        <div id="rpOrd"><label>Tanggal pembuatan pesanan</label></div>
       </div>
       <div class="checks">
         <label><input type="checkbox" id="fPaidOnly"> Hanya yang uangnya sudah cair (&gt; Rp0)</label>
@@ -210,7 +245,7 @@ const EXCLUDED=[
   "PAKET BEST ISI 6 BONUS KERANJANG SPESIAL JAJAN LEBARAN",
   "PAKET ENDUL ISI 5 BONUS TAS SPESIAL JAJAN LEBARAN",
   "PAKET SABENA ISI 6 SPESIAL JAJAN LEBARAN",
-  "PAKET MANTAP ISI 6 spesial jajan lebaran",
+  "PAKET MANTAP ISI 6 spesial jajan lebaran"
 ];
 const normName=s=>String(s).replace(/\s+/g,' ').trim().toLowerCase();
 const EXCL_SET=new Set(EXCLUDED.map(normName));
@@ -318,12 +353,13 @@ function parseOrders(rows,h){
 function rebuild(){
   const inc=state.income,ord=state.orders;
   if(!inc&&!ord){return}
-  const rows=[];
+  const rows=[];let skipAdj=0;
   if(inc){
     for(const [id,i] of inc){
       const o=ord?ord.get(id):null;
       let status,produk;
-      if(i.jenis&&i.jenis!=='Pesanan'){status=i.jenis;produk=o?o.produk:'(penyesuaian, bukan pesanan)'}
+      if(i.jenis&&i.jenis!=='Pesanan'&&!o){skipAdj++;continue} // penyesuaian tanpa produk: tidak dibaca
+      if(i.jenis&&i.jenis!=='Pesanan'){status=i.jenis;produk=o.produk}
       else if(o){status=o.status||'Tidak diketahui';produk=o.produk}
       else{status='Tidak ada di file pesanan';produk=ord?'(order tidak ditemukan di file Semua pesanan)':'(upload file Semua pesanan)'}
       rows.push({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true,bases:o?o.bases:[produk]});
@@ -338,7 +374,7 @@ function rebuild(){
   const showEx=$('fShowExcl').checked;
   const kept=showEx?rows:rows.filter(r=>!(r.bases.length&&r.bases.every(x=>EXCL_SET.has(normName(x)))));
   const hidden=rows.length-kept.length;
-  $('exclInfo').textContent=showEx?'':(hidden+' baris dari '+EXCLUDED.length+' produk dikecualikan disembunyikan');
+  $('exclInfo').textContent=(showEx?'':(hidden+' baris dari '+EXCLUDED.length+' produk dikecualikan disembunyikan'))+(skipAdj?(showEx?'':' · ')+skipAdj+' baris penyesuaian (bukan pesanan) dilewati':'');
   state.rows=kept;
   $('app').style.display='block';
   buildProdukList();
@@ -355,7 +391,7 @@ function rebuild(){
 function statusClass(s){return ['Selesai','Dikirim','Dibatalkan'].includes(s)?'b-'+s:'b-other'}
 function applyFilters(){
   const q=$('fSearch').value.trim().toLowerCase();
-  const pf=$('fPayFrom').value,pt=$('fPayTo').value,of=$('fOrdFrom').value,ot=$('fOrdTo').value;
+  const pf=rpPay.from,pt=rpPay.to,of=rpOrd.from,ot=rpOrd.to;
   const paidOnly=$('fPaidOnly').checked,incl=$('fIncludeUnpaid').checked;
   const base=state.rows.filter(r=>{
     if(!incl&&!r.inIncome)return false;
@@ -443,11 +479,11 @@ function renderGroup(kind){
 /* ---------- event ---------- */
 let t;
 $('fSearch').addEventListener('input',()=>{clearTimeout(t);t=setTimeout(()=>{state.page=1;applyFilters()},200)});
-['fPayFrom','fPayTo','fOrdFrom','fOrdTo','fPaidOnly','fIncludeUnpaid'].forEach(id=>$(id).addEventListener('change',()=>{state.page=1;applyFilters()}));
+['fPaidOnly','fIncludeUnpaid'].forEach(id=>$(id).addEventListener('change',()=>{state.page=1;applyFilters()}));
 $('fShowExcl').addEventListener('change',()=>{if(state.income||state.orders){state.page=1;rebuild()}});
 $('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.status=b.dataset.s;state.page=1;applyFilters()});
 $('btnReset').addEventListener('click',()=>{
-  ['fSearch','fPayFrom','fPayTo','fOrdFrom','fOrdTo'].forEach(id=>$(id).value='');
+  $('fSearch').value='';rpPay.clear();rpOrd.clear();
   $('prodSearch').value='';state.selProd=new Set(state.allProds);renderProdList();
   $('fPaidOnly').checked=false;$('fIncludeUnpaid').checked=false;state.status='Semua';state.page=1;applyFilters();
 });
@@ -465,6 +501,101 @@ document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
   state.tab=b.dataset.tab;render();
 }));
+
+/* ---------- pemilih rentang tanggal (kalender 2 bulan) ---------- */
+const TODAY_D=new Date();
+const isoOf=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const TODAY=isoOf(TODAY_D);
+const WD=['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+const rpAll=[];
+function createRangePicker(box,opts){
+  opts=opts||{};
+  const p={from:'',to:'',start:'',hover:'',vy:TODAY_D.getFullYear(),vm:TODAY_D.getMonth()};
+  box.classList.add('rp');
+  box.insertAdjacentHTML('beforeend','<button type="button" class="rp-field"><span class="rp-t" data-r="a"></span><span class="rp-sep">–</span><span class="rp-t" data-r="b"></span><span class="rp-sp"></span><span class="rp-x" title="Hapus tanggal">✕</span><svg class="rp-ic" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.8v2.5M10.5 1.8v2.5"/></svg></button><div class="rp-pop'+(opts.align==='right'?' right':'')+'"></div>');
+  const field=box.querySelector('.rp-field'),pop=box.querySelector('.rp-pop');
+  const elA=box.querySelector('[data-r=a]'),elB=box.querySelector('[data-r=b]');
+  const changed=()=>{if(opts.onChange)opts.onChange()};
+
+  function monthHtml(y,m,side){
+    const off=(new Date(y,m,1).getDay()+6)%7;
+    let days='';
+    for(let i=0;i<42;i++){
+      const d=new Date(y,m,1-off+i);
+      days+='<button type="button" data-d="'+isoOf(d)+'" data-o="'+(d.getMonth()===m?0:1)+'">'+pad(d.getDate())+'</button>';
+    }
+    const l=side==='l'?'<span><button type="button" class="nav" data-n="-12" title="Tahun sebelumnya">«</button><button type="button" class="nav" data-n="-1" title="Bulan sebelumnya">‹</button></span>':'<span></span>';
+    const r=side==='r'?'<span><button type="button" class="nav" data-n="1" title="Bulan berikutnya">›</button><button type="button" class="nav" data-n="12" title="Tahun berikutnya">»</button></span>':'<span></span>';
+    return '<div class="rp-cal"><div class="rp-head">'+l+'<span class="ttl">'+pad(m+1)+' / '+y+'</span>'+r+'</div><div class="rp-wd">'+WD.map(w=>'<span>'+w+'</span>').join('')+'</div><div class="rp-days">'+days+'</div></div>';
+  }
+  function build(){
+    const y2=p.vm===11?p.vy+1:p.vy,m2=(p.vm+1)%12;
+    pop.innerHTML='<div class="rp-cals">'+monthHtml(p.vy,p.vm,'l')+monthHtml(y2,m2,'r')+'</div>';
+    paint();
+  }
+  function paint(){
+    let a,b;
+    if(p.start){const h=p.hover||p.start;a=p.start<h?p.start:h;b=p.start<h?h:p.start}
+    else{a=p.from;b=p.to}
+    pop.querySelectorAll('[data-d]').forEach(btn=>{
+      const d=btn.dataset.d;let c='';
+      if(btn.dataset.o==='1')c='out';
+      else{
+        if(d>TODAY)c='dis';
+        else{
+          if(a&&d>=a&&d<=b)c+=' inr';
+          if(p.start?d===p.start:(d===p.from||d===p.to))c+=' dark';
+        }
+        if(d===TODAY)c+=' today';
+      }
+      btn.className=c.trim();
+    });
+    const ta=p.start?p.start:p.from,tb=p.start?p.hover:p.to;
+    elA.textContent=ta?showDate(ta):'Mulai';elA.classList.toggle('ph',!ta);
+    elB.textContent=tb?showDate(tb):'Hingga';elB.classList.toggle('ph',!tb);
+    box.classList.toggle('has',!!(p.from||p.to));
+  }
+  function open(){
+    rpAll.forEach(o=>{if(o.box!==box)o.close()});
+    const base=p.from||TODAY;
+    p.vy=+base.slice(0,4);p.vm=+base.slice(5,7)-1;
+    box.classList.add('open');build();
+  }
+  function close(){
+    box.classList.remove('open');
+    if(p.start){p.start='';p.hover='';paint()}
+  }
+  field.addEventListener('click',e=>{
+    if(e.target.closest('.rp-x')){e.stopPropagation();p.from=p.to=p.start=p.hover='';paint();changed();return}
+    box.classList.contains('open')?close():open();
+  });
+  pop.addEventListener('click',e=>{
+    const n=e.target.closest('[data-n]');
+    if(n){const t=p.vy*12+p.vm+Number(n.dataset.n);p.vy=Math.floor(t/12);p.vm=t%12;build();return}
+    const b=e.target.closest('[data-d]');
+    if(!b||/out|dis/.test(b.className))return;
+    const d=b.dataset.d;
+    if(!p.start){p.start=d;p.hover='';paint()}          // klik pertama: tanggal awal
+    else{                                                // klik kedua: tanggal akhir
+      let x=p.start,y=d;if(y<x){const t=x;x=y;y=t}
+      p.from=x;p.to=y;p.start='';p.hover='';paint();close();changed();
+    }
+  });
+  pop.addEventListener('mouseover',e=>{
+    if(!p.start)return;
+    const b=e.target.closest('[data-d]');
+    if(!b||/out|dis/.test(b.className)||b.dataset.d===p.hover)return;
+    p.hover=b.dataset.d;paint();
+  });
+  document.addEventListener('click',e=>{if(!e.composedPath().includes(box))close()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+  paint();
+  const api={box,close,get from(){return p.from},get to(){return p.to},clear(){p.from=p.to=p.start=p.hover='';paint()}};
+  rpAll.push(api);
+  return api;
+}
+const rpPay=createRangePicker($('rpPay'),{onChange:()=>{state.page=1;applyFilters()}});
+const rpOrd=createRangePicker($('rpOrd'),{align:'right',onChange:()=>{state.page=1;applyFilters()}});
 
 /* ---------- pilih produk (centang) ---------- */
 state.selProd=new Set();state.allProds=[];state.prodCount=new Map();
