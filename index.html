@@ -31,7 +31,21 @@ h1{font-size:20px;margin:0 0 4px}
 .notice{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:8px 12px;margin-bottom:12px;display:none}
 .notice.err{background:var(--bad-bg);color:var(--bad)}
 #app{display:none}
-.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:12px}
+.tdk{color:var(--bad)}
+.stat.tdkc strong{color:var(--bad)}
+.b-ret{background:var(--bad-bg);color:var(--bad)}
+.neg{color:var(--bad);font-weight:600}
+.stat.netc strong{color:var(--ok)}
+.rsum{min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--card);overflow:hidden}
+.rsum td{padding:9px 12px;border-bottom:1px solid var(--line)}
+.rsum tr.total td{font-weight:700;font-size:16px;background:var(--teal-soft);border-bottom:0}
+.rsum tr.info td{color:var(--muted);font-size:13px}
+.rh{margin:20px 0 6px;font-size:15px}
+.rnote{color:var(--muted);font-size:12.5px;margin:2px 0 10px}
+.est{color:var(--warn);font-style:italic}
+.estl{font-size:11px;font-style:normal;opacity:.85}
+.stat.estc strong{color:var(--warn)}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
 .stat span{color:var(--muted);font-size:12px;display:block}
 .stat strong{font-size:20px}
@@ -152,9 +166,12 @@ details summary{cursor:pointer;font-weight:600}
   <div id="app">
     <div class="cards">
       <div class="stat"><span>Jumlah baris tampil</span><strong id="cCount">0</strong></div>
-      <div class="stat"><span>Pesanan selesai</span><strong id="cDone">0</strong></div>
-      <div class="stat"><span>Sudah cair (&gt; Rp0)</span><strong id="cPaid">0</strong></div>
-      <div class="stat"><span>Total uang cair</span><strong id="cSum">Rp0</strong></div>
+      <div class="stat"><span>Pesanan selesai (uang positif)</span><strong id="cDone">0</strong></div>
+      <div class="stat"><span>Uang cair (masuk rekening)</span><strong id="cGross">Rp0</strong></div>
+      <div class="stat tdkc"><span>Potongan negatif (tidak masuk uang cair)</span><strong id="cNeg">Rp0</strong></div>
+      <div class="stat netc"><span>Uang bersih (setelah potongan)</span><strong id="cNet">Rp0</strong></div>
+      <div class="stat estc"><span>Estimasi, belum cair (Dikirim)</span><strong id="cEst">Rp0</strong></div>
+      <div class="stat"><span>Status lain tapi uang positif (sudah termasuk uang cair)</span><strong id="cTdk">Rp0</strong></div>
     </div>
 
     <div class="panel">
@@ -179,7 +196,7 @@ details summary{cursor:pointer;font-weight:600}
         <div id="rpOrd"><label>Tanggal pembuatan pesanan</label></div>
       </div>
       <div class="checks">
-        <label><input type="checkbox" id="fPaidOnly"> Hanya yang uangnya sudah cair (&gt; Rp0)</label>
+        <label><input type="checkbox" id="fPaidOnly"> Hanya yang ada nominalnya (cair atau potongan)</label>
         <label><input type="checkbox" id="fIncludeUnpaid"> Sertakan pesanan yang belum ada di file income</label>
         <label><input type="checkbox" id="fShowExcl"> Tampilkan juga produk yang dikecualikan</label>
         <span id="exclInfo" style="color:var(--muted);font-size:12.5px"></span>
@@ -192,6 +209,7 @@ details summary{cursor:pointer;font-weight:600}
         <button class="tab on" data-tab="detail">Detail pesanan</button>
         <button class="tab" data-tab="produk">Rekap per produk</button>
         <button class="tab" data-tab="tanggal">Rekap per tanggal bayar</button>
+        <button class="tab" data-tab="laporan">Laporan keuangan</button>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn" id="btnExcel">Unduh Excel</button>
@@ -200,6 +218,7 @@ details summary{cursor:pointer;font-weight:600}
 
     <div class="tablewrap"><table id="tbl"></table></div>
     <div class="pager" id="pager"></div>
+    <div id="report" style="display:none"></div>
 
     <div class="panel" style="margin-top:16px">
       <details>
@@ -209,7 +228,7 @@ details summary{cursor:pointer;font-weight:600}
           <div><label>Token (kalau kamu isi di Code.gs)</label><input type="password" id="gsToken" placeholder="opsional"></div>
           <div><button class="btn primary" id="btnSend">Kirim data</button></div>
         </div>
-        <div class="hint" id="sendHint">Yang dikirim: data yang sedang tampil sesuai filter (tab Detail + Rekap per produk). Sheet lama akan ditimpa.</div>
+        <div class="hint" id="sendHint">Yang dikirim: data yang sedang tampil sesuai filter (sheet Rekap Order, Rekap Produk, dan Laporan Keuangan). Sheet lama akan ditimpa.</div>
       </details>
     </div>
   </div>
@@ -245,14 +264,25 @@ const EXCLUDED=[
   "PAKET BEST ISI 6 BONUS KERANJANG SPESIAL JAJAN LEBARAN",
   "PAKET ENDUL ISI 5 BONUS TAS SPESIAL JAJAN LEBARAN",
   "PAKET SABENA ISI 6 SPESIAL JAJAN LEBARAN",
-  "PAKET ENAQ ISI 6 SPESIAL JAJAN LEBARAN",
-  "PAKET MANTAP ISI 6 spesial jajan lebaran"
+  "PAKET MANTAP ISI 6 spesial jajan lebaran",
+  "PAKET ENAQ ISI 6 SPESIAL JAJAN LEBARAN"
 ];
 const normName=s=>String(s).replace(/\s+/g,' ').trim().toLowerCase();
 const EXCL_SET=new Set(EXCLUDED.map(normName));
 const state={income:null,orders:null,rows:[],filtered:[],sortKey:'tglBayar',sortDir:-1,page:1,perPage:100,tab:'detail',status:'Semua'};
 const $=id=>document.getElementById(id);
-const rp=n=>'Rp'+new Intl.NumberFormat('id-ID').format(Math.round(n||0));
+const rp=n=>{n=Math.round(n||0);return (n<0?'-':'')+'Rp'+new Intl.NumberFormat('id-ID').format(Math.abs(n))};
+/* ATURAN UANG (ditentukan di fungsi classify)
+   - Nominal POSITIF  = dianggap pesanan Selesai & uang cair, apa pun status di file pesanan
+                        (kecuali status Dikirim = masih ESTIMASI, belum cair)
+   - Nominal NEGATIF  = potongan, TIDAK masuk uang cair; statusnya dicek dan ditulis di Keterangan
+   - Uang bersih      = uang cair (positif) + potongan (negatif) */
+const isEst=r=>r.kel==='est';
+const grossOf=r=>r.kel==='cair'?r.bayar:0;
+const negOf=r=>r.kel==='neg'?r.bayar:0;
+const cairOf=r=>grossOf(r)+negOf(r);   // kontribusi ke uang bersih
+const estOf=r=>r.kel==='est'?r.bayar:0;
+const tdkOf=r=>r.konv?r.bayar:0;       // status lain (Cancel/Return dll) tapi uang positif: ikut dihitung
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const tick=()=>new Promise(r=>setTimeout(r,30));
 
@@ -345,12 +375,32 @@ function parseOrders(rows,h){
     const base=String(r[c['Product Name']]??'').trim();
     const o=map.get(id);
     if(o){if(!o.produk.includes(nama))o.produk+=' + '+nama;o.bases.push(base)}
-    else map.set(id,{id,produk:nama,bases:[base],status:String(r[c['Order Status']]??'').trim(),tglBuat:toIso(r[c['Created Time']])});
+    else{
+      let st=String(r[c['Order Status']]??'').trim();
+      const tp=String(r[c['Cancelation/Return Type']]??'').trim();
+      if(st==='Selesai'&&tp)st=tp;   // Selesai tapi ada Cancel / Return/Refund: bukan pesanan selesai
+      map.set(id,{id,produk:nama,bases:[base],status:st,tglBuat:toIso(r[c['Created Time']])});
+    }
   }
   state.orders=map;
 }
 
 /* ---------- gabung data ---------- */
+function classify(r,isOrder){
+  r.statusAsli=r.status;r.ket='';r.kel='nol';r.konv=false;
+  if(r.status==='Dikirim'){r.kel='est';r.ket='Estimasi, belum cair (pesanan masih Dikirim)';return r}
+  if(r.bayar>0){
+    r.kel='cair';
+    if(isOrder&&r.status!=='Selesai'){r.konv=true;r.ket='Status di file pesanan: '+r.status+', tapi uang positif, jadi dihitung selesai dan cair';r.status='Selesai'}
+    return r;
+  }
+  if(r.bayar<0){
+    r.kel='neg';const a=r.statusAsli;
+    r.ket='Potongan, tidak masuk uang cair. '+(a==='Return/Refund'?'Status: Return/Refund (dana dikembalikan ke pembeli)':a==='Cancel'?'Status: Cancel':a==='Selesai'?'Pesanan Selesai tapi nominal negatif (kemungkinan pengembalian dana atau penyesuaian)':a==='Dibatalkan'?'Status: Dibatalkan':'Status: '+a);
+    r.status='Potongan';
+  }
+  return r;
+}
 function rebuild(){
   const inc=state.income,ord=state.orders;
   if(!inc&&!ord){return}
@@ -363,13 +413,13 @@ function rebuild(){
       if(i.jenis&&i.jenis!=='Pesanan'){status=i.jenis;produk=o.produk}
       else if(o){status=o.status||'Tidak diketahui';produk=o.produk}
       else{status='Tidak ada di file pesanan';produk=ord?'(order tidak ditemukan di file Semua pesanan)':'(upload file Semua pesanan)'}
-      rows.push({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true,bases:o?o.bases:[produk]});
+      rows.push(classify({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true,bases:o?o.bases:[produk]},!!o&&!(i.jenis&&i.jenis!=='Pesanan')));
     }
   }
   if(ord){
     for(const [id,o] of ord){
       if(inc&&inc.has(id))continue;
-      rows.push({id,produk:o.produk,status:o.status,bayar:0,tglBuat:o.tglBuat,tglBayar:'',inIncome:false,bases:o.bases});
+      rows.push(classify({id,produk:o.produk,status:o.status,bayar:0,tglBuat:o.tglBuat,tglBayar:'',inIncome:false,bases:o.bases},true));
     }
   }
   const showEx=$('fShowExcl').checked;
@@ -389,7 +439,7 @@ function rebuild(){
 }
 
 /* ---------- filter ---------- */
-function statusClass(s){return ['Selesai','Dikirim','Dibatalkan'].includes(s)?'b-'+s:'b-other'}
+function statusClass(s){if(s==='Cancel'||s==='Return/Refund'||s==='Potongan')return 'b-ret';return ['Selesai','Dikirim','Dibatalkan'].includes(s)?'b-'+s:'b-other'}
 function applyFilters(){
   const q=$('fSearch').value.trim().toLowerCase();
   const pf=rpPay.from,pt=rpPay.to,of=rpOrd.from,ot=rpOrd.to;
@@ -398,7 +448,7 @@ function applyFilters(){
     if(!incl&&!r.inIncome)return false;
     if(q&&!(r.id.includes(q)||r.produk.toLowerCase().includes(q)))return false;
     if(!state.selProd.has(r.produk))return false;
-    if(paidOnly&&!(r.bayar>0))return false;
+    if(paidOnly&&cairOf(r)===0)return false;
     if(pf&&(!r.tglBayar||r.tglBayar<pf))return false;
     if(pt&&(!r.tglBayar||r.tglBayar>pt))return false;
     if(of&&(!r.tglBuat||r.tglBuat<of))return false;
@@ -412,6 +462,7 @@ function applyFilters(){
   if(state.status!=='Semua'&&!names.includes(state.status))names.push(state.status);
   $('chips').innerHTML=[`<button class="chip ${state.status==='Semua'?'on':''}" data-s="Semua">Semua<em>${base.length}</em></button>`,
     ...names.map(s=>`<button class="chip ${state.status===s?'on':''}" data-s="${esc(s)}">${esc(s)}<em>${counts[s]||0}</em></button>`)].join('');
+  state.base=base;
   state.filtered=state.status==='Semua'?base:base.filter(r=>r.status===state.status);
   sortRows();render();
 }
@@ -427,12 +478,21 @@ function sortRows(){
 /* ---------- render ---------- */
 function render(){
   const f=state.filtered;
-  $('cCount').textContent=new Intl.NumberFormat('id-ID').format(f.length);
-  $('cDone').textContent=new Intl.NumberFormat('id-ID').format(f.filter(r=>r.status==='Selesai').length);
-  $('cPaid').textContent=new Intl.NumberFormat('id-ID').format(f.filter(r=>r.bayar>0).length);
-  $('cSum').textContent=rp(f.reduce((s,r)=>s+r.bayar,0));
+  const N=n=>new Intl.NumberFormat('id-ID').format(n);
+  const gross=f.reduce((a,r)=>a+grossOf(r),0),neg=f.reduce((a,r)=>a+negOf(r),0);
+  $('cCount').textContent=N(f.length);
+  $('cDone').textContent=N(f.filter(r=>r.status==='Selesai').length);
+  $('cGross').textContent=rp(gross);
+  $('cNeg').textContent=rp(neg);
+  $('cNet').textContent=rp(gross+neg);
+  $('cEst').textContent=rp(f.reduce((a,r)=>a+estOf(r),0));
+  $('cTdk').textContent=rp(f.reduce((a,r)=>a+tdkOf(r),0));
+  const rep=state.tab==='laporan';
+  $('report').style.display=rep?'block':'none';
+  document.querySelector('.tablewrap').style.display=rep?'none':'';
   if(state.tab==='detail')renderDetail();
   else if(state.tab==='produk')renderGroup('produk');
+  else if(rep)renderReport();
   else renderGroup('tanggal');
 }
 function renderDetail(){
@@ -440,13 +500,16 @@ function renderDetail(){
   const pages=Math.max(1,Math.ceil(f.length/state.perPage));
   if(state.page>pages)state.page=pages;
   const slice=f.slice((state.page-1)*state.perPage,state.page*state.perPage);
-  const cols=[['id','Order ID'],['produk','Nama Produk'],['status','Pesanan Selesai?'],['bayar','Jumlah Penyelesaian Pembayaran','num'],['tglBuat','Tanggal Pembuatan Pesanan'],['tglBayar','Tanggal Pembayaran']];
+  const cols=[['id','Order ID'],['produk','Nama Produk'],['status','Pesanan Selesai?'],['bayar','Jumlah Penyelesaian Pembayaran','num'],['tglBuat','Tanggal Pembuatan Pesanan'],['tglBayar','Tanggal Pembayaran'],['ket','Keterangan']];
   const arrow=k=>state.sortKey===k?(state.sortDir>0?' ▲':' ▼'):'';
   let h='<thead><tr>'+cols.map(([k,t,c])=>`<th data-k="${k}" class="${c||''}">${t}${arrow(k)}</th>`).join('')+'</tr></thead><tbody>';
-  if(!slice.length)h+=`<tr><td colspan="6" class="empty">Tidak ada data yang cocok dengan filter.</td></tr>`;
+  if(!slice.length)h+=`<tr><td colspan="7" class="empty">Tidak ada data yang cocok dengan filter.</td></tr>`;
   for(const r of slice){
-    h+=`<tr><td class="id">${esc(r.id)}</td><td>${esc(r.produk)}</td><td><span class="badge ${statusClass(r.status)}">${esc(r.status)}</span></td>`+
-       `<td class="num ${r.bayar>0?'':'zero'}">${rp(r.bayar)}</td><td>${showDate(r.tglBuat)}</td><td>${showDate(r.tglBayar)||'<span class="zero">belum</span>'}</td></tr>`;
+    let amt,dt=showDate(r.tglBayar)||'<span class="zero">belum</span>';
+    if(r.kel==='est'){amt=`<td class="num est">${rp(r.bayar)}</td>`;dt=`<span class="est">${showDate(r.tglBayar)||'-'}</span>`}
+    else if(r.kel==='neg')amt=`<td class="num neg">${rp(r.bayar)}</td>`;
+    else amt=`<td class="num ${r.bayar>0?'':'zero'}">${rp(r.bayar)}</td>`;
+    h+=`<tr><td class="id">${esc(r.id)}</td><td>${esc(r.produk)}</td><td><span class="badge ${statusClass(r.status)}">${esc(r.status)}</span></td>${amt}<td>${showDate(r.tglBuat)}</td><td>${dt}</td><td class="${r.kel==='neg'?'neg':r.kel==='est'?'est':''}" style="font-size:12.5px;font-weight:400;min-width:200px">${esc(r.ket)}</td></tr>`;
   }
   $('tbl').innerHTML=h+'</tbody>';
   $('pager').innerHTML=pages>1?`<button class="btn" id="pPrev" ${state.page<=1?'disabled':''}>‹ Sebelumnya</button><span>Halaman ${state.page} dari ${pages}</span><button class="btn" id="pNext" ${state.page>=pages?'disabled':''}>Berikutnya ›</button>`:'';
@@ -455,8 +518,8 @@ function groupData(kind){
   const m=new Map();
   for(const r of state.filtered){
     const key=kind==='produk'?r.produk:(r.tglBayar||'(belum dibayar)');
-    let g=m.get(key);if(!g){g={key,n:0,done:0,paid:0,sum:0};m.set(key,g)}
-    g.n++;if(r.status==='Selesai')g.done++;if(r.bayar>0)g.paid++;g.sum+=r.bayar;
+    let g=m.get(key);if(!g){g={key,n:0,done:0,gross:0,neg:0,sum:0,est:0,tdk:0};m.set(key,g)}
+    g.n++;if(r.status==='Selesai')g.done++;g.gross+=grossOf(r);g.neg+=negOf(r);g.sum+=cairOf(r);g.est+=estOf(r);g.tdk+=tdkOf(r);
   }
   const arr=[...m.values()];
   arr.sort(kind==='produk'?(a,b)=>b.sum-a.sum:(a,b)=>a.key.localeCompare(b.key));
@@ -465,15 +528,67 @@ function groupData(kind){
 function renderGroup(kind){
   const arr=groupData(kind);
   const label=kind==='produk'?'Nama Produk':'Tanggal Pembayaran';
-  let h=`<thead><tr><th style="cursor:default">${label}</th><th class="num" style="cursor:default">Jumlah pesanan</th><th class="num" style="cursor:default">Pesanan selesai</th><th class="num" style="cursor:default">Sudah cair</th><th class="num" style="cursor:default">Total uang cair</th></tr></thead><tbody>`;
-  if(!arr.length)h+=`<tr><td colspan="5" class="empty">Tidak ada data.</td></tr>`;
-  let tn=0,td=0,tp=0,ts=0;
+  const th=t=>`<th class="num" style="cursor:default">${t}</th>`;
+  let h=`<thead><tr><th style="cursor:default">${label}</th>${th('Jumlah pesanan')}${th('Pesanan selesai')}${th('Uang cair')}${th('Potongan (negatif)')}${th('Uang bersih')}${th('Estimasi (belum cair)')}${th('Status lain, uang positif (sudah termasuk uang cair)')}</tr></thead><tbody>`;
+  if(!arr.length)h+=`<tr><td colspan="8" class="empty">Tidak ada data.</td></tr>`;
+  const T={n:0,done:0,gross:0,neg:0,sum:0,est:0,tdk:0};
+  const cell=(v,c)=>`<td class="num ${c||''}">${v?rp(v):'-'}</td>`;
   for(const g of arr){
-    tn+=g.n;td+=g.done;tp+=g.paid;ts+=g.sum;
-    h+=`<tr><td>${esc(kind==='tanggal'&&g.key[0]!=='('?showDate(g.key):g.key)}</td><td class="num">${g.n}</td><td class="num">${g.done}</td><td class="num">${g.paid}</td><td class="num">${rp(g.sum)}</td></tr>`;
+    for(const k in T)T[k]+=g[k];
+    h+=`<tr><td>${esc(kind==='tanggal'&&g.key[0]!=='('?showDate(g.key):g.key)}</td><td class="num">${g.n}</td><td class="num">${g.done}</td>${cell(g.gross)}${cell(g.neg,'neg')}<td class="num"><b>${rp(g.sum)}</b></td>${cell(g.est,'est')}${cell(g.tdk,'tdk')}</tr>`;
   }
-  if(arr.length)h+=`<tr><td><b>TOTAL</b></td><td class="num"><b>${tn}</b></td><td class="num"><b>${td}</b></td><td class="num"><b>${tp}</b></td><td class="num"><b>${rp(ts)}</b></td></tr>`;
+  if(arr.length)h+=`<tr><td><b>TOTAL</b></td><td class="num"><b>${T.n}</b></td><td class="num"><b>${T.done}</b></td><td class="num"><b>${rp(T.gross)}</b></td><td class="num neg"><b>${rp(T.neg)}</b></td><td class="num"><b>${rp(T.sum)}</b></td><td class="num est"><b>${rp(T.est)}</b></td><td class="num tdk"><b>${rp(T.tdk)}</b></td></tr>`;
   $('tbl').innerHTML=h+'</tbody>';
+  $('pager').innerHTML='';
+}
+
+/* ---------- laporan keuangan ---------- */
+function periodText(){
+  const f=rpPay.from,t=rpPay.to;
+  return (f||t)?('Tanggal pembayaran '+(f?showDate(f):'…')+' sampai '+(t?showDate(t):'…')):'Semua tanggal pembayaran';
+}
+function reportData(){
+  const R={gross:0,neg:0,est:0,konv:0,nSelesai:0,nEst:0,nKonv:0,negRows:[],konvRows:[]};
+  for(const r of (state.base||[])){
+    if(r.kel==='est'){R.est+=r.bayar;R.nEst++;continue}
+    if(r.status==='Selesai')R.nSelesai++;
+    if(r.kel==='cair')R.gross+=r.bayar;
+    if(r.kel==='neg'){R.neg+=r.bayar;R.negRows.push(r)}
+    if(r.konv){R.konv+=r.bayar;R.nKonv++;R.konvRows.push(r)}
+  }
+  R.net=R.gross+R.neg;
+  R.negRows.sort((a,b)=>a.bayar-b.bayar);
+  R.konvRows.sort((a,b)=>a.statusAsli.localeCompare(b.statusAsli)||b.bayar-a.bayar);
+  return R;
+}
+function listTable(rows){
+  if(!rows.length)return '';
+  const tot=rows.reduce((a,r)=>a+r.bayar,0);
+  const th=(t,c)=>`<th class="${c||''}" style="cursor:default">${t}</th>`;
+  let h=`<div class="tablewrap"><table><thead><tr>${th('Order ID')}${th('Nama Produk')}${th('Status di file pesanan')}${th('Nominal','num')}${th('Tgl pembuatan')}${th('Tgl pembayaran')}${th('Keterangan')}</tr></thead><tbody>`;
+  for(const r of rows){
+    h+=`<tr><td class="id">${esc(r.id)}</td><td>${esc(r.produk)}</td><td><span class="badge ${statusClass(r.statusAsli)}">${esc(r.statusAsli)}</span></td><td class="num ${r.bayar<0?'neg':''}">${rp(r.bayar)}</td><td>${showDate(r.tglBuat)}</td><td>${showDate(r.tglBayar)||'-'}</td><td style="font-size:12.5px;min-width:220px">${esc(r.ket)}</td></tr>`;
+  }
+  h+=`<tr><td colspan="3"><b>TOTAL (${rows.length} order)</b></td><td class="num ${tot<0?'neg':''}"><b>${rp(tot)}</b></td><td colspan="3"></td></tr></tbody></table></div>`;
+  return h;
+}
+function renderReport(){
+  const R=reportData();
+  const row=(a,b,c,cls)=>`<tr class="${cls||''}"><td>${a}</td><td class="num">${b}</td><td class="num ${cls==='neg'?'neg':''}">${c}</td></tr>`;
+  let h=`<div class="rnote">${esc(periodText())}. Laporan ini mengikuti filter pencarian, produk, dan tanggal, tapi mengabaikan pilihan chip status.</div>`;
+  h+=`<div class="tablewrap"><table class="rsum"><tbody>`+
+    row('Pesanan selesai (uang positif)',R.nSelesai+' pesanan','')+
+    row('Uang cair masuk rekening','',rp(R.gross))+
+    row('Dikurangi: potongan negatif (rincian order ID di bawah)',R.negRows.length+' order',rp(R.neg),'neg')+
+    row('UANG BERSIH','',rp(R.net),'total')+
+    row('Info: sudah termasuk di uang cair, pesanan berstatus lain (Cancel/Return dll) tapi uang positif',R.nKonv+' order',rp(R.konv),'info')+
+    row('Info, tidak dihitung: estimasi pesanan Dikirim (belum cair)',R.nEst+' order',rp(R.est),'info')+
+    `</tbody></table></div>`;
+  h+=`<h3 class="rh">Rincian potongan negatif (tidak masuk uang cair, mengurangi uang bersih)</h3>`;
+  h+=R.negRows.length?listTable(R.negRows):`<div class="rnote">Tidak ada nominal negatif pada data ini.</div>`;
+  h+=`<h3 class="rh">Rincian pesanan berstatus lain (Cancel/Return dll) tapi uang positif, dihitung selesai</h3>`;
+  h+=R.konvRows.length?listTable(R.konvRows):`<div class="rnote">Tidak ada pesanan seperti ini pada data ini.</div>`;
+  $('report').innerHTML=h;
   $('pager').innerHTML='';
 }
 
@@ -647,9 +762,31 @@ $('prodAll').addEventListener('click',()=>setVisible(true));
 $('prodNone').addEventListener('click',()=>setVisible(false));
 
 /* ---------- ekspor ---------- */
-const HEAD=['Order ID','Nama Produk','Pesanan Selesai','Jumlah Penyelesaian Pembayaran','Tanggal Pembuatan Pesanan','Tanggal Pembayaran'];
-function detailAoa(){return [HEAD,...state.filtered.map(r=>[r.id,r.produk,r.status,r.bayar,r.tglBuat,r.tglBayar])]}
-function produkAoa(){return [['Nama Produk','Jumlah Pesanan','Pesanan Selesai','Sudah Cair','Total Uang Cair'],...groupData('produk').map(g=>[g.key,g.n,g.done,g.paid,g.sum])]}
+const HEAD=['Order ID','Nama Produk','Pesanan Selesai','Jumlah Penyelesaian Pembayaran','Tanggal Pembuatan Pesanan','Tanggal Pembayaran','Keterangan Dana','Keterangan'];
+const danaNote=r=>r.kel==='est'?'Estimasi (belum cair)':r.kel==='neg'?'Potongan (tidak masuk uang cair)':r.bayar>0?'Sudah cair':'-';
+function detailAoa(){return [HEAD,...state.filtered.map(r=>[r.id,r.produk,r.status,r.bayar,r.tglBuat,r.tglBayar,danaNote(r),r.ket])]}
+function produkAoa(){return [['Nama Produk','Jumlah Pesanan','Pesanan Selesai','Uang Cair','Potongan (negatif)','Uang Bersih','Estimasi (belum cair)','Status lain, uang positif (sudah termasuk uang cair)'],...groupData('produk').map(g=>[g.key,g.n,g.done,g.gross,g.neg,g.sum,g.est,g.tdk])]}
+function reportAoa(){
+  const R=reportData(),E='';
+  const lst=rows=>rows.map(r=>[r.id,r.produk,r.statusAsli,r.bayar,r.tglBuat,r.tglBayar,r.ket]);
+  const H=['Order ID','Nama Produk','Status di File Pesanan','Nominal','Tanggal Pembuatan Pesanan','Tanggal Pembayaran','Keterangan'];
+  const b=[E,E,E,E,E,E,E];
+  return [
+    ['LAPORAN KEUANGAN',E,E,E,E,E,E],
+    [periodText()+' (mengabaikan filter status)',E,E,E,E,E,E],
+    b,
+    ['Pesanan selesai (uang positif)',E,R.nSelesai+' pesanan',E,E,E,E],
+    ['Uang cair masuk rekening',E,E,R.gross,E,E,E],
+    ['Dikurangi: potongan negatif',E,R.negRows.length+' order',R.neg,E,E,E],
+    ['UANG BERSIH',E,E,R.net,E,E,E],
+    ['Info: sudah termasuk di uang cair, status lain (Cancel/Return dll) tapi uang positif',E,R.nKonv+' order',R.konv,E,E,E],
+    ['Info, tidak dihitung: estimasi pesanan Dikirim (belum cair)',E,R.nEst+' order',R.est,E,E,E],
+    b,
+    ['RINCIAN POTONGAN NEGATIF',E,E,E,E,E,E],H,...lst(R.negRows),
+    b,
+    ['RINCIAN PESANAN STATUS LAIN TAPI UANG POSITIF (DIHITUNG SELESAI)',E,E,E,E,E,E],H,...lst(R.konvRows)
+  ];
+}
 $('btnExcel').addEventListener('click',()=>{
   const wb=XLSX.utils.book_new();
   const ws1=XLSX.utils.aoa_to_sheet(detailAoa().map((r,i)=>i?[String(r[0]),...r.slice(1)]:r));
@@ -657,6 +794,8 @@ $('btnExcel').addEventListener('click',()=>{
   XLSX.utils.book_append_sheet(wb,ws1,'Detail');
   const ws2=XLSX.utils.aoa_to_sheet(produkAoa());ws2['!cols']=[{wch:60},{wch:16},{wch:16},{wch:12},{wch:18}];
   XLSX.utils.book_append_sheet(wb,ws2,'Rekap Produk');
+  const ws3=XLSX.utils.aoa_to_sheet(reportAoa());ws3['!cols']=[{wch:52},{wch:55},{wch:18},{wch:16},{wch:22},{wch:20},{wch:18}];
+  XLSX.utils.book_append_sheet(wb,ws3,'Laporan Keuangan');
   XLSX.writeFile(wb,'rekap-pesanan.xlsx');
 });
 
@@ -668,12 +807,13 @@ $('btnSend').addEventListener('click',async()=>{
   try{localStorage.setItem('gsUrl',url);localStorage.setItem('gsToken',token)}catch(e){}
   const payload={token,sheets:[
     {name:'Rekap Order',values:detailAoa(),textCols:[0],dateCols:[4,5],moneyCols:[3]},
-    {name:'Rekap Produk',values:produkAoa(),textCols:[],dateCols:[],moneyCols:[4]}
+    {name:'Rekap Produk',values:produkAoa(),textCols:[],dateCols:[],moneyCols:[3,4,5,6,7]},
+    {name:'Laporan Keuangan',values:reportAoa(),textCols:[0],dateCols:[4,5],moneyCols:[3]}
   ]};
   const btn=$('btnSend');btn.disabled=true;btn.textContent='Mengirim…';
   try{
     await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
-    $('sendHint').textContent='Terkirim ('+state.filtered.length+' baris). Buka spreadsheet kamu dan cek sheet "Rekap Order" dan "Rekap Produk". Kalau kosong, cek token dan pengaturan deploy.';
+    $('sendHint').textContent='Terkirim ('+state.filtered.length+' baris). Buka spreadsheet kamu dan cek sheet "Rekap Order", "Rekap Produk", dan "Laporan Keuangan". Kalau kosong, cek token dan pengaturan deploy.';
   }catch(err){$('sendHint').textContent='Gagal mengirim: '+err.message}
   btn.disabled=false;btn.textContent='Kirim data';
 });
