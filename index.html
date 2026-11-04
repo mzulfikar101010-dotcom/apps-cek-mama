@@ -391,7 +391,7 @@ function classify(r,isOrder){
   if(r.status==='Dikirim'){r.kel='est';r.ket='Estimasi, belum cair (pesanan masih Dikirim)';return r}
   if(r.bayar>0){
     r.kel='cair';
-    if(isOrder&&r.status!=='Selesai'){r.konv=true;r.ket='Status di file pesanan: '+r.status+', tapi uang positif, jadi dihitung selesai dan cair';r.status='Selesai'}
+    if(isOrder&&r.status!=='Selesai'){r.konv=true;r.ket=(r.status==='Cancel'?'Status di file pesanan: Cancel. Pembeli mengajukan pembatalan tapi ditolak penjual, pesanan tetap dikirim sampai selesai dan uang cair':'Status di file pesanan: '+r.status+', tapi uang positif, jadi dihitung selesai dan cair');r.status='Selesai'}
     return r;
   }
   if(r.bayar<0){
