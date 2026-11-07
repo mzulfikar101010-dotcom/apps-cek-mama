@@ -172,6 +172,7 @@ details summary{cursor:pointer;font-weight:600}
       <div class="stat netc"><span>Uang bersih (setelah potongan)</span><strong id="cNet">Rp0</strong></div>
       <div class="stat estc"><span>Estimasi, belum cair (Dikirim)</span><strong id="cEst">Rp0</strong></div>
       <div class="stat"><span>Status lain tapi uang positif (sudah termasuk uang cair)</span><strong id="cTdk">Rp0</strong></div>
+      <div class="stat"><span>Penggantian dana platform (sudah termasuk uang cair)</span><strong id="cAdj">Rp0</strong></div>
     </div>
 
     <div class="panel">
@@ -364,7 +365,7 @@ function parseIncome(rows,h){
     const jenis=String(r[c['Jenis transaksi']]??'');
     const o=map.get(id);
     if(o){o.pay+=pay}
-    else map.set(id,{id,pay,jenis,tglBuat:toIso(r[c['Waktu pemesanan']]),tglBayar:toIso(r[c['Waktu pembayaran pesanan']])});
+    else map.set(id,{id,pay,jenis,rel:String(r[c['ID pesanan terkait']]??'').trim(),tglBuat:toIso(r[c['Waktu pemesanan']]),tglBayar:toIso(r[c['Waktu pembayaran pesanan']])});
   }
   state.income=map;
 }
@@ -413,11 +414,16 @@ function rebuild(){
     for(const [id,i] of inc){
       const o=ord?ord.get(id):null;
       let status,produk;
-      if(i.jenis&&i.jenis!=='Pesanan'&&!o){skipAdj++;continue} // penyesuaian tanpa produk: tidak dibaca
-      if(i.jenis&&i.jenis!=='Pesanan'){status=i.jenis;produk=o.produk}
+      const isAdj=!!(i.jenis&&i.jenis!=='Pesanan'); // mis. Penggantian dana oleh platform: tetap dihitung walau tanpa pesanan di file
+      if(isAdj){status=i.jenis;produk='('+i.jenis+')'}
       else if(o){status=o.status||'Tidak diketahui';produk=o.produk}
       else{status='Tidak ada di file pesanan';produk=ord?'(order tidak ditemukan di file Semua pesanan)':'(upload file Semua pesanan)'}
-      rows.push(classify({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true,bases:o?o.bases:[produk]},!!o&&!(i.jenis&&i.jenis!=='Pesanan')));
+      const row=classify({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true,bases:isAdj?[produk]:(o?o.bases:[produk]),adj:isAdj},!!o&&!isAdj);
+      if(isAdj){
+        const ro=(i.rel&&ord)?ord.get(i.rel):null;
+        row.ket=(row.kel==='neg'?'Potongan, tidak masuk uang cair. ':'')+i.jenis+(i.rel?' (pesanan terkait: '+i.rel+(ro?', produk: '+ro.produk:'')+')':'')+(row.kel==='cair'?', dihitung sebagai saldo positif':'');
+      }
+      rows.push(row);
     }
   }
   if(ord){
@@ -491,6 +497,7 @@ function render(){
   $('cNet').textContent=rp(gross+neg);
   $('cEst').textContent=rp(f.reduce((a,r)=>a+estOf(r),0));
   $('cTdk').textContent=rp(f.reduce((a,r)=>a+tdkOf(r),0));
+  $('cAdj').textContent=rp(f.reduce((a,r)=>a+(r.adj&&r.kel!=='est'?r.bayar:0),0));
   const rep=state.tab==='laporan';
   $('report').style.display=rep?'block':'none';
   document.querySelector('.tablewrap').style.display=rep?'none':'';
@@ -552,17 +559,19 @@ function periodText(){
   return (f||t)?('Tanggal pembayaran '+(f?showDate(f):'…')+' sampai '+(t?showDate(t):'…')):'Semua tanggal pembayaran';
 }
 function reportData(){
-  const R={gross:0,neg:0,est:0,konv:0,nSelesai:0,nEst:0,nKonv:0,negRows:[],konvRows:[]};
+  const R={gross:0,neg:0,est:0,konv:0,adj:0,nAdj:0,nSelesai:0,nEst:0,nKonv:0,negRows:[],konvRows:[],adjRows:[]};
   for(const r of (state.base||[])){
     if(r.kel==='est'){R.est+=r.bayar;R.nEst++;continue}
     if(r.status==='Selesai')R.nSelesai++;
     if(r.kel==='cair')R.gross+=r.bayar;
     if(r.kel==='neg'){R.neg+=r.bayar;R.negRows.push(r)}
     if(r.konv){R.konv+=r.bayar;R.nKonv++;R.konvRows.push(r)}
+    if(r.adj){R.adj+=r.bayar;R.nAdj++;R.adjRows.push(r)}
   }
   R.net=R.gross+R.neg;
   R.negRows.sort((a,b)=>a.bayar-b.bayar);
   R.konvRows.sort((a,b)=>a.statusAsli.localeCompare(b.statusAsli)||b.bayar-a.bayar);
+  R.adjRows.sort((a,b)=>(b.tglBayar||'').localeCompare(a.tglBayar||''));
   return R;
 }
 function listTable(rows){
@@ -586,10 +595,13 @@ function renderReport(){
     row('Dikurangi: potongan negatif (rincian order ID di bawah)',R.negRows.length+' order',rp(R.neg),'neg')+
     row('UANG BERSIH','',rp(R.net),'total')+
     row('Info: sudah termasuk di uang cair, pesanan berstatus lain (Cancel/Return dll) tapi uang positif',R.nKonv+' order',rp(R.konv),'info')+
+    row('Info: sudah termasuk di uang cair, penggantian dana oleh platform',R.nAdj+' transaksi',rp(R.adj),'info')+
     row('Info, tidak dihitung: estimasi pesanan Dikirim (belum cair)',R.nEst+' order',rp(R.est),'info')+
     `</tbody></table></div>`;
   h+=`<h3 class="rh">Rincian potongan negatif (tidak masuk uang cair, mengurangi uang bersih)</h3>`;
   h+=R.negRows.length?listTable(R.negRows):`<div class="rnote">Tidak ada nominal negatif pada data ini.</div>`;
+  h+=`<h3 class="rh">Rincian penggantian dana oleh platform (saldo positif)</h3>`;
+  h+=R.adjRows.length?listTable(R.adjRows):`<div class="rnote">Tidak ada penggantian dana pada data ini.</div>`;
   h+=`<h3 class="rh">Rincian pesanan berstatus lain (Cancel/Return dll) tapi uang positif, dihitung selesai</h3>`;
   h+=R.konvRows.length?listTable(R.konvRows):`<div class="rnote">Tidak ada pesanan seperti ini pada data ini.</div>`;
   $('report').innerHTML=h;
@@ -784,9 +796,12 @@ function reportAoa(){
     ['Dikurangi: potongan negatif',E,R.negRows.length+' order',R.neg,E,E,E],
     ['UANG BERSIH',E,E,R.net,E,E,E],
     ['Info: sudah termasuk di uang cair, status lain (Cancel/Return dll) tapi uang positif',E,R.nKonv+' order',R.konv,E,E,E],
+    ['Info: sudah termasuk di uang cair, penggantian dana oleh platform',E,R.nAdj+' transaksi',R.adj,E,E,E],
     ['Info, tidak dihitung: estimasi pesanan Dikirim (belum cair)',E,R.nEst+' order',R.est,E,E,E],
     b,
     ['RINCIAN POTONGAN NEGATIF',E,E,E,E,E,E],H,...lst(R.negRows),
+    b,
+    ['RINCIAN PENGGANTIAN DANA OLEH PLATFORM (SALDO POSITIF)',E,E,E,E,E,E],H,...lst(R.adjRows),
     b,
     ['RINCIAN PESANAN STATUS LAIN TAPI UANG POSITIF (DIHITUNG SELESAI)',E,E,E,E,E,E],H,...lst(R.konvRows)
   ];
