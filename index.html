@@ -418,9 +418,10 @@ function rebuild(){
       if(isAdj){status=i.jenis;produk='('+i.jenis+')'}
       else if(o){status=o.status||'Tidak diketahui';produk=o.produk}
       else{status='Tidak ada di file pesanan';produk=ord?'(order tidak ditemukan di file Semua pesanan)':'(upload file Semua pesanan)'}
-      const row=classify({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true,bases:isAdj?[produk]:(o?o.bases:[produk]),adj:isAdj},!!o&&!isAdj);
+      const ro=(isAdj&&i.rel&&ord)?ord.get(i.rel):null;   // pesanan terkait (kalau ada di file pesanan)
+      // Penggantian dana mengikuti produk pesanan terkaitnya: kalau produknya dikecualikan, ikut tidak dibaca
+      const row=classify({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true,bases:isAdj?(ro?ro.bases:[produk]):(o?o.bases:[produk]),adj:isAdj},!!o&&!isAdj);
       if(isAdj){
-        const ro=(i.rel&&ord)?ord.get(i.rel):null;
         row.ket=(row.kel==='neg'?'Potongan, tidak masuk uang cair. ':'')+i.jenis+(i.rel?' (pesanan terkait: '+i.rel+(ro?', produk: '+ro.produk:'')+')':'')+(row.kel==='cair'?', dihitung sebagai saldo positif':'');
       }
       rows.push(row);
