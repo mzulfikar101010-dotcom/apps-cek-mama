@@ -722,8 +722,8 @@ function profitGroups(){
     const name=(r.parts&&r.parts.length?r.parts.map(x=>splitName(x,r.tglBuat)).sort((a,b)=>a<b?-1:a>b?1:0).join(' + '):splitName(r.produk,r.tglBuat));
     const norm=Math.round((r.bayar-(pfIgnoreShip?(r.ong||0)+(r.aff||0):0))*100)/100;
     const key=name+'\u0001'+norm;
-    let g=m.get(key);if(!g){g={name,norm,key,n:0,sum:0,ids:[],min:Infinity,max:-Infinity};m.set(key,g)}
-    g.n++;g.ids.push(r.id);g.sum+=r.bayar;if(r.bayar<g.min)g.min=r.bayar;if(r.bayar>g.max)g.max=r.bayar;
+    let g=m.get(key);if(!g){g={name,norm,key,n:0,sum:0,ids:[],rows:[],min:Infinity,max:-Infinity};m.set(key,g)}
+    g.n++;g.ids.push(r.id);g.rows.push({id:r.id,bayar:r.bayar,ong:r.ong||0,aff:r.aff||0,tb:r.tglBuat,tp:r.tglBayar});g.sum+=r.bayar;if(r.bayar<g.min)g.min=r.bayar;if(r.bayar>g.max)g.max=r.bayar;
   }
   const arr=[...m.values()],byName=new Map();
   arr.forEach(g=>{g.amt=g.sum/g.n;if(!byName.has(g.name))byName.set(g.name,[]);byName.get(g.name).push(g)});
@@ -738,8 +738,11 @@ function profitGroups(){
   return arr;
 }
 function idsRow(g){
-  const ids=g.ids.slice().sort();
-  return `<tr class="pf-ids"><td colspan="9" style="background:var(--bg)"><div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap"><textarea readonly rows="6" style="width:min(420px,100%);font:12.5px ui-monospace,Menlo,Consolas,monospace;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text)">${esc(ids.join('\n'))}</textarea><div><b>${ids.length} order ID</b> pada kelompok "${esc(g.label)}"<br><button type="button" class="btn" data-act="copyids" style="margin-top:6px">Salin semua ID</button></div></div></td></tr>`;
+  const rows=g.rows.slice().sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
+  const i=(state.pfGroups||[]).indexOf(g);
+  const body=rows.map(r=>`<tr><td class="id">${esc(r.id)}</td><td class="num">${rp(r.bayar)}</td><td class="num">${r.ong?rp(r.ong):'-'}</td><td class="num">${r.aff?rp(r.aff):'-'}</td><td>${showDate(r.tb)||'-'}</td><td>${showDate(r.tp)||'-'}</td></tr>`).join('');
+  const th=(t,c)=>`<th class="${c||''}" style="cursor:default">${t}</th>`;
+  return `<tr class="pf-ids"><td colspan="9" style="background:var(--bg)"><div style="margin-bottom:8px"><b>${rows.length} order</b> pada kelompok "${esc(g.label)}" &nbsp; <button type="button" class="btn" data-act="copyids" data-m="all" data-i="${i}">Salin ID + uang cair</button> <button type="button" class="btn" data-act="copyids" data-m="id" data-i="${i}">Salin ID saja</button></div><div style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Uang cair','num')}${th('Ongkir','num')}${th('Komisi afiliasi','num')}${th('Tgl pembuatan')}${th('Tgl pembayaran')}</tr></thead><tbody>${body}</tbody></table></div></td></tr>`;
 }
 function pfCalc(g){
   const s=pfStore[g.key]||{},q=parseNum(s.q)||1,mo=parseNum(s.m)*q,op=parseNum(s.o)*q,ki=parseNum(s.k);   // modal & operasional ikut dikali qty, komisi investor tidak
@@ -845,10 +848,12 @@ $('profit').addEventListener('click',e=>{
   }
   const cid=e.target.closest('[data-act=copyids]');
   if(cid){
-    const ta=cid.closest('td').querySelector('textarea');ta.focus();ta.select();
-    const done=()=>{cid.textContent='Tersalin ✓'},fail=()=>{cid.textContent='Tekan Ctrl+C untuk menyalin'};
-    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(ta.value).then(done,()=>{let ok=false;try{ok=document.execCommand('copy')}catch(x){}ok?done():fail()});
-    else{let ok=false;try{ok=document.execCommand('copy')}catch(x){}ok?done():fail()}
+    const g=(state.pfGroups||[])[+cid.dataset.i];if(!g)return;
+    const rows=g.rows.slice().sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
+    const txt=rows.map(r=>cid.dataset.m==='id'?r.id:r.id+'\t'+Math.round(r.bayar)+'\t'+showDate(r.tp)).join('\n');
+    const done=()=>{cid.textContent='Tersalin ✓'};
+    const legacy=()=>{const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand('copy')}catch(x){}ta.remove();ok?done():(cid.textContent='Gagal menyalin')};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,legacy);else legacy();
     return;
   }
   if(e.target.id==='pfRuleAdd'){pfRules.push({name:'',date:''});pfRulesOpen=true;pfRulesSave();renderProfit();return}
