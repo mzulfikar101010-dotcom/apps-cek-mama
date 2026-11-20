@@ -143,6 +143,33 @@ details summary{cursor:pointer;font-weight:600}
   .rp-cal{width:auto!important}
   .rp-cal+.rp-cal{border-left:0!important;border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
 }
+
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:60;padding:16px}
+.modal-ov.open{display:flex}
+.modal{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;width:min(700px,100%);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.modal-h{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.modal-h b{font-size:16px;display:block}.modal-h span{color:var(--muted);font-size:12.5px}
+.modal-b{padding:12px 16px;overflow:auto;flex:1;min-height:120px}
+.modal-f{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;align-items:center}
+.xnote{background:var(--gray-bg);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.xrow{display:flex;gap:12px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;text-align:left;background:none;border-left:0;border-right:0;border-top:0;border-radius:0}
+.xrow:hover{background:var(--bg)}
+.xrow .t{flex:1;min-width:0;word-break:break-word}
+.xrow small{display:block;color:var(--muted);font-size:12px}
+.xrow.off .t{color:var(--muted)}
+.sw{width:44px;height:26px;border-radius:13px;background:var(--line);position:relative;flex:none;transition:.15s}
+.sw::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s}
+.sw.on{background:var(--bad)}.sw.on::after{left:21px}
+#xImp{display:none;width:100%;min-height:120px;margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font:inherit;color:var(--text)}
+.pf-in{width:120px;text-align:right;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-variant-numeric:tabular-nums}
+.pf-in:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.pf-warn{color:var(--warn);font-size:12.5px;margin:0 0 8px;min-height:1em}
+.pf-bulk{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
+.pf-bulk input{width:150px}
+.pos{color:var(--ok);font-weight:600}
+.pf-total td{font-weight:700;background:var(--teal-soft)}
+.pf-grand{margin-top:12px;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--card);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+.pf-grand strong{font-size:22px}
 </style>
 </head>
 <body>
@@ -201,6 +228,7 @@ details summary{cursor:pointer;font-weight:600}
         <label><input type="checkbox" id="fIncludeUnpaid"> Sertakan pesanan yang belum ada di file income</label>
         <label><input type="checkbox" id="fShowExcl"> Tampilkan juga produk yang dikecualikan</label>
         <span id="exclInfo" style="color:var(--muted);font-size:12.5px"></span>
+        <button class="btn" id="btnExcl">Atur produk dikecualikan</button>
         <button class="btn" id="btnReset" style="margin-left:auto">Reset filter</button>
       </div>
     </div>
@@ -211,6 +239,7 @@ details summary{cursor:pointer;font-weight:600}
         <button class="tab" data-tab="produk">Rekap per produk</button>
         <button class="tab" data-tab="tanggal">Rekap per tanggal bayar</button>
         <button class="tab" data-tab="laporan">Laporan keuangan</button>
+        <button class="tab" data-tab="profit">Hitung profit</button>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn" id="btnExcel">Unduh Excel</button>
@@ -220,6 +249,7 @@ details summary{cursor:pointer;font-weight:600}
     <div class="tablewrap"><table id="tbl"></table></div>
     <div class="pager" id="pager"></div>
     <div id="report" style="display:none"></div>
+    <div id="profit" style="display:none"></div>
 
     <div class="panel" style="margin-top:16px">
       <details>
@@ -229,8 +259,28 @@ details summary{cursor:pointer;font-weight:600}
           <div><label>Token (kalau kamu isi di Code.gs)</label><input type="password" id="gsToken" placeholder="opsional"></div>
           <div><button class="btn primary" id="btnSend">Kirim data</button></div>
         </div>
-        <div class="hint" id="sendHint">Yang dikirim: data yang sedang tampil sesuai filter (sheet Rekap Order, Rekap Produk, dan Laporan Keuangan). Sheet lama akan ditimpa.</div>
+        <div class="hint" id="sendHint">Yang dikirim: data yang sedang tampil sesuai filter (sheet Rekap Order, Rekap Produk, Laporan Keuangan, dan Hitung Profit). Sheet lama akan ditimpa.</div>
       </details>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="xOv">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Produk dikecualikan">
+    <div class="modal-h"><div><b>Produk dikecualikan</b><span id="xCnt"></span></div><button class="btn" id="xClose">Selesai</button></div>
+    <div class="modal-b">
+      <div class="xnote">Nyalakan saklar pada produk yang <b>tidak mau dibaca</b>. Pesanan produk itu disembunyikan dari semua tabel dan hitungan. Pesanan berisi beberapa produk baru disembunyikan kalau <b>semua</b> produknya dikecualikan. Pilihan tersimpan di browser ini.</div>
+      <input type="text" id="xSearch" placeholder="Cari nama produk…">
+      <div id="xList" style="margin-top:8px"></div>
+      <textarea id="xImp" placeholder="Tempel daftar nama produk, satu nama per baris. Daftar yang sekarang akan diganti."></textarea>
+    </div>
+    <div class="modal-f">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="xCopy">Salin daftar</button>
+        <button class="btn" id="xImport">Impor daftar</button>
+        <button class="btn" id="xDefault">Kembalikan daftar awal</button>
+      </div>
+      <span id="xMsg" style="color:var(--muted);font-size:12.5px"></span>
     </div>
   </div>
 </div>
@@ -273,7 +323,17 @@ const EXCLUDED=[
   "LIVE PAKET MANTAP ISI 6 spesial jajan lebaran"
 ];
 const normName=s=>String(s).replace(/\s+/g,' ').trim().toLowerCase();
-const EXCL_SET=new Set(EXCLUDED.map(normName));
+/* Daftar produk dikecualikan: disimpan di browser (localStorage) dan diatur lewat tombol "Atur produk dikecualikan".
+   Daftar EXCLUDED di atas hanya dipakai sebagai isi awal / saat "Kembalikan daftar awal". */
+const EXKEY='rekapExcl';
+const exclMap=new Map();   // nama ternormalisasi -> nama tampil
+function exclSeed(){exclMap.clear();EXCLUDED.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()))}
+function exclSave(){try{localStorage.setItem(EXKEY,JSON.stringify([...exclMap.values()]))}catch(e){}}
+(function(){
+  let a=null;try{a=JSON.parse(localStorage.getItem(EXKEY)||'null')}catch(e){}
+  if(Array.isArray(a)){exclMap.clear();a.forEach(n=>{const s=String(n).replace(/\s+/g,' ').trim();if(s)exclMap.set(normName(s),s)})}
+  else exclSeed();
+})();
 const state={income:null,orders:null,rows:[],filtered:[],sortKey:'tglBayar',sortDir:-1,page:1,perPage:100,tab:'detail',status:'Semua'};
 const $=id=>document.getElementById(id);
 const rp=n=>{n=Math.round(n||0);return (n<0?'-':'')+'Rp'+new Intl.NumberFormat('id-ID').format(Math.abs(n))};
@@ -300,9 +360,9 @@ document.querySelectorAll('.drop').forEach(el=>{
   el.addEventListener('click',()=>picker.click());
   el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('over')});
   el.addEventListener('dragleave',()=>el.classList.remove('over'));
-  el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('over');handleFiles(e.dataTransfer.files)});
+  el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('over');handleFiles([...e.dataTransfer.files])});
 });
-picker.addEventListener('change',()=>{handleFiles(picker.files);picker.value=''});
+picker.addEventListener('change',()=>{handleFiles([...picker.files]);picker.value=''});   // salin dulu: mengosongkan input akan ikut mengosongkan daftar file
 window.addEventListener('dragover',e=>e.preventDefault());
 window.addEventListener('drop',e=>{e.preventDefault();if(!e.target.closest||!e.target.closest('.drop'))handleFiles(e.dataTransfer.files)});
 
@@ -363,9 +423,10 @@ function parseIncome(rows,h){
     if(!isId(id))continue;
     const pay=Number(r[c['Jumlah penyelesaian pembayaran']])||0;
     const jenis=String(r[c['Jenis transaksi']]??'');
+    const ong=Number(r[c['Ongkir']])||0,aff=Number(r[c['Komisi Afiliasi']])||0;
     const o=map.get(id);
-    if(o){o.pay+=pay}
-    else map.set(id,{id,pay,jenis,rel:String(r[c['ID pesanan terkait']]??'').trim(),tglBuat:toIso(r[c['Waktu pemesanan']]),tglBayar:toIso(r[c['Waktu pembayaran pesanan']])});
+    if(o){o.pay+=pay;o.ong+=ong;o.aff+=aff}
+    else map.set(id,{id,pay,ong,aff,jenis,rel:String(r[c['ID pesanan terkait']]??'').trim(),tglBuat:toIso(r[c['Waktu pemesanan']]),tglBayar:toIso(r[c['Waktu pembayaran pesanan']])});
   }
   state.income=map;
 }
@@ -379,12 +440,12 @@ function parseOrders(rows,h){
     if(varia&&varia.toLowerCase()!=='default')nama+=' ('+varia+')';
     const base=String(r[c['Product Name']]??'').trim();
     const o=map.get(id);
-    if(o){if(!o.produk.includes(nama))o.produk+=' + '+nama;o.bases.push(base)}
+    if(o){if(!o.produk.includes(nama))o.produk+=' + '+nama;if(!o.parts.includes(nama))o.parts.push(nama);o.bases.push(base)}
     else{
       let st=String(r[c['Order Status']]??'').trim();
       const tp=String(r[c['Cancelation/Return Type']]??'').trim();
       if(st==='Selesai'&&tp)st=tp;   // Selesai tapi ada Cancel / Return/Refund: bukan pesanan selesai
-      map.set(id,{id,produk:nama,bases:[base],status:st,tglBuat:toIso(r[c['Created Time']])});
+      map.set(id,{id,produk:nama,parts:[nama],bases:[base],status:st,tglBuat:toIso(r[c['Created Time']])});
     }
   }
   state.orders=map;
@@ -420,7 +481,7 @@ function rebuild(){
       else{status='Tidak ada di file pesanan';produk=ord?'(order tidak ditemukan di file Semua pesanan)':'(upload file Semua pesanan)'}
       const ro=(isAdj&&i.rel&&ord)?ord.get(i.rel):null;   // pesanan terkait (kalau ada di file pesanan)
       // Penggantian dana mengikuti produk pesanan terkaitnya: kalau produknya dikecualikan, ikut tidak dibaca
-      const row=classify({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true,bases:isAdj?(ro?ro.bases:[produk]):(o?o.bases:[produk]),adj:isAdj},!!o&&!isAdj);
+      const row=classify({id,produk,status,bayar:i.pay,tglBuat:(o&&o.tglBuat)||i.tglBuat,tglBayar:i.tglBayar,inIncome:true,bases:isAdj?(ro?ro.bases:[produk]):(o?o.bases:[produk]),parts:isAdj?[produk]:(o?o.parts:[produk]),ong:i.ong,aff:i.aff,adj:isAdj},!!o&&!isAdj);
       if(isAdj){
         row.ket=(row.kel==='neg'?'Potongan, tidak masuk uang cair. ':'')+i.jenis+(i.rel?' (pesanan terkait: '+i.rel+(ro?', produk: '+ro.produk:'')+')':'')+(row.kel==='cair'?', dihitung sebagai saldo positif':'');
       }
@@ -430,13 +491,13 @@ function rebuild(){
   if(ord){
     for(const [id,o] of ord){
       if(inc&&inc.has(id))continue;
-      rows.push(classify({id,produk:o.produk,status:o.status,bayar:0,tglBuat:o.tglBuat,tglBayar:'',inIncome:false,bases:o.bases},true));
+      rows.push(classify({id,produk:o.produk,status:o.status,bayar:0,tglBuat:o.tglBuat,tglBayar:'',inIncome:false,bases:o.bases,parts:o.parts},true));
     }
   }
   const showEx=$('fShowExcl').checked;
-  const kept=showEx?rows:rows.filter(r=>!(r.bases.length&&r.bases.every(x=>EXCL_SET.has(normName(x)))));
+  const kept=showEx?rows:rows.filter(r=>!(r.bases.length&&r.bases.every(x=>exclMap.has(normName(x)))));
   const hidden=rows.length-kept.length;
-  $('exclInfo').textContent=(showEx?'':(hidden+' baris dari '+EXCLUDED.length+' produk dikecualikan disembunyikan'))+(skipAdj?(showEx?'':' · ')+skipAdj+' baris penyesuaian (bukan pesanan) dilewati':'');
+  $('exclInfo').textContent=(showEx?'':(hidden+' baris dari '+exclMap.size+' produk dikecualikan disembunyikan'))+(skipAdj?(showEx?'':' · ')+skipAdj+' baris penyesuaian (bukan pesanan) dilewati':'');
   state.rows=kept;
   $('app').style.display='block';
   buildProdukList();
@@ -499,12 +560,14 @@ function render(){
   $('cEst').textContent=rp(f.reduce((a,r)=>a+estOf(r),0));
   $('cTdk').textContent=rp(f.reduce((a,r)=>a+tdkOf(r),0));
   $('cAdj').textContent=rp(f.reduce((a,r)=>a+(r.adj&&r.kel!=='est'?r.bayar:0),0));
-  const rep=state.tab==='laporan';
+  const rep=state.tab==='laporan',pro=state.tab==='profit';
   $('report').style.display=rep?'block':'none';
-  document.querySelector('.tablewrap').style.display=rep?'none':'';
+  $('profit').style.display=pro?'block':'none';
+  document.querySelector('.tablewrap').style.display=(rep||pro)?'none':'';
   if(state.tab==='detail')renderDetail();
   else if(state.tab==='produk')renderGroup('produk');
   else if(rep)renderReport();
+  else if(pro)renderProfit();
   else renderGroup('tanggal');
 }
 function renderDetail(){
@@ -608,6 +671,180 @@ function renderReport(){
   $('report').innerHTML=h;
   $('pager').innerHTML='';
 }
+
+/* ---------- hitung profit ---------- */
+/* Kelompok = nama barang (persis sama) + uang cair per order.
+   Hanya order dengan uang cair positif (bukan estimasi, bukan potongan, bukan penggantian dana platform).
+   Opsi "abaikan ongkir & komisi afiliasi": uang cair untuk PENGELOMPOKAN dihitung tanpa komponen Ongkir dan
+   Komisi Afiliasi (supaya selisih kecil tidak memecah kelompok), tapi TOTAL uang cair tetap angka asli.
+   Order berisi beberapa barang digabung jadi satu nama "A + B" (urutan nama disortir supaya konsisten). */
+const PFKEY='rekapProfit',PFOPT='rekapProfitOpt';
+let pfStore={},pfIgnoreShip=true,pfSort='nama',pfRulesOpen=false;
+/* Aturan pisah produk berdasarkan tanggal pembuatan pesanan (untuk produk yang isinya diganti tanpa ganti nama).
+   Pesanan dibuat SEBELUM tanggal batas -> kelompok sendiri; pada/sesudah tanggal batas -> kelompok sendiri. */
+const PFRULES='rekapProfitRules';
+let pfRules=[{name:'PAKET YES ISI 6 spesial jajan lebaran',date:'2026-10-21'}];
+try{const x=JSON.parse(localStorage.getItem(PFRULES)||'null');if(Array.isArray(x))pfRules=x}catch(e){}
+const pfRulesSave=()=>{try{localStorage.setItem(PFRULES,JSON.stringify(pfRules))}catch(e){}};
+function splitName(part,tgl){
+  if(!tgl)return part;
+  const n=normName(part);
+  for(const r of pfRules){
+    if(!r.name||!r.date)continue;
+    const k=normName(r.name);
+    if(n===k||n.startsWith(k+' (')){
+      return part+(tgl<r.date?' [dibuat sebelum '+showDate(r.date)+']':' [dibuat mulai '+showDate(r.date)+']');
+    }
+  }
+  return part;
+}
+try{const x=JSON.parse(localStorage.getItem(PFKEY)||'null');if(x&&typeof x==='object')pfStore=x}catch(e){}
+try{const v=localStorage.getItem(PFOPT);if(v!==null)pfIgnoreShip=v==='1'}catch(e){}
+const pfSave=()=>{try{localStorage.setItem(PFKEY,JSON.stringify(pfStore))}catch(e){}};
+function parseNum(s){
+  s=String(s==null?'':s).replace(/rp/ig,'').replace(/\s/g,'');
+  if(!s)return 0;
+  if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.');
+  else if(/^-?\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'');
+  else if(/^-?\d{1,3}(,\d{3})+$/.test(s))s=s.replace(/,/g,'');
+  else s=s.replace(',','.');
+  const n=Number(s);return isFinite(n)?n:0;
+}
+function profitGroups(){
+  const m=new Map();
+  for(const r of (state.base||[])){
+    if(r.kel!=='cair'||r.adj)continue;
+    const name=(r.parts&&r.parts.length?r.parts.map(x=>splitName(x,r.tglBuat)).sort((a,b)=>a<b?-1:a>b?1:0).join(' + '):splitName(r.produk,r.tglBuat));
+    const norm=Math.round((r.bayar-(pfIgnoreShip?(r.ong||0)+(r.aff||0):0))*100)/100;
+    const key=name+'\u0001'+norm;
+    let g=m.get(key);if(!g){g={name,norm,key,n:0,sum:0,min:Infinity,max:-Infinity};m.set(key,g)}
+    g.n++;g.sum+=r.bayar;if(r.bayar<g.min)g.min=r.bayar;if(r.bayar>g.max)g.max=r.bayar;
+  }
+  const arr=[...m.values()],byName=new Map();
+  arr.forEach(g=>{g.amt=g.sum/g.n;if(!byName.has(g.name))byName.set(g.name,[]);byName.get(g.name).push(g)});
+  for(const list of byName.values()){
+    list.sort((a,b)=>a.norm-b.norm);
+    list.forEach((g,i)=>{g.label=list.length>1?g.name+' ('+(i+1)+')':g.name});
+  }
+  const byNm=(a,b)=>(a.name<b.name?-1:a.name>b.name?1:0)||a.norm-b.norm;
+  if(pfSort==='desc')arr.sort((a,b)=>b.sum-a.sum||byNm(a,b));
+  else if(pfSort==='asc')arr.sort((a,b)=>a.sum-b.sum||byNm(a,b));
+  else arr.sort(byNm);
+  return arr;
+}
+function pfCalc(g){
+  const s=pfStore[g.key]||{},mo=parseNum(s.m),op=parseNum(s.o);
+  return {mo,op,per:g.amt-mo-op,tot:g.sum-(mo+op)*g.n};
+}
+function updateProfit(){
+  const gs=state.pfGroups||[];
+  const T={n:0,c:0,m:0,o:0,p:0};let miss=0;
+  gs.forEach((g,i)=>{
+    const c=pfCalc(g),s=pfStore[g.key]||{};
+    T.n+=g.n;T.c+=g.sum;T.m+=c.mo*g.n;T.o+=c.op*g.n;T.p+=c.tot;
+    if(!String(s.m||'').trim())miss++;
+    const a=$('pfP'+i),b=$('pfT'+i);
+    if(a){a.textContent=rp(c.per);a.className='num '+(c.per<0?'neg':'')}
+    if(b){b.textContent=rp(c.tot);b.className='num '+(c.tot<0?'neg':'pos')}
+  });
+  const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
+  set('pfTn',T.n);set('pfTc',rp(T.c));set('pfTm',rp(T.m));set('pfTo',rp(T.o));set('pfTp',rp(T.p));
+  const gt=$('pfGrand');if(gt){gt.textContent=rp(T.p);gt.className=T.p<0?'neg':'pos'}
+  set('pfMiss',miss?(miss+' dari '+gs.length+' kelompok belum diisi modalnya, jadi profit totalnya belum akurat.'):'');
+}
+function renderProfit(){
+  const gs=state.pfGroups=profitGroups();
+  let nNeg=0,vNeg=0,nAdj=0,vAdj=0,nEst=0,vEst=0;
+  for(const r of (state.base||[])){
+    if(r.kel==='neg'){nNeg++;vNeg+=r.bayar}
+    else if(r.kel==='est'){nEst++;vEst+=r.bayar}
+    else if(r.kel==='cair'&&r.adj){nAdj++;vAdj+=r.bayar}
+  }
+  let h=`<div class="rnote">${esc(periodText())}. Mengikuti filter pencarian, produk, dan tanggal (mengabaikan chip status). Modal dan biaya operasional diisi <b>per paket</b>, tersimpan otomatis di browser ini.</div>`;
+  h+=`<div class="checks" style="margin:0 0 10px"><label><input type="checkbox" id="pfShip" ${pfIgnoreShip?'checked':''}> Abaikan selisih ongkir &amp; komisi afiliasi saat mengelompokkan (total uang cair tetap memakai angka asli, tidak diubah)</label></div>`;
+  const prods=[...new Set((state.rows||[]).flatMap(r=>r.bases||[]))].sort();
+  h+=`<details id="pfRulesBox" class="panel" style="padding:10px 14px;margin-bottom:10px" ${pfRulesOpen?'open':''}><summary>Pisahkan produk berdasarkan tanggal pembuatan pesanan (${pfRules.length} aturan)</summary>`+
+    `<div class="rnote">Untuk produk yang isinya diganti tanpa ganti nama. Pesanan dibuat sebelum tanggal batas jadi satu kelompok, yang dibuat pada tanggal batas dan sesudahnya jadi kelompok lain.</div>`+
+    pfRules.map((r,i)=>`<div class="pf-bulk" style="margin-bottom:6px"><div style="flex:1;min-width:260px"><label>Nama produk (persis)</label><input type="text" list="pfProdList" data-ri="${i}" data-rf="name" value="${esc(r.name)}"></div><div><label>Tanggal batas</label><input type="date" data-ri="${i}" data-rf="date" value="${esc(r.date)}"></div><button type="button" class="btn" data-rdel="${i}">Hapus</button></div>`).join('')+
+    `<datalist id="pfProdList">${prods.map(x=>`<option value="${esc(x)}">`).join('')}</datalist><button type="button" class="btn" id="pfRuleAdd">+ Tambah aturan</button></details>`;
+  const sb=(k,t)=>`<button type="button" class="chip ${pfSort===k?'on':''}" data-pfsort="${k}">${t}</button>`;
+  h+=`<div class="chips" style="margin:0 0 10px"><span style="color:var(--muted);font-size:12.5px">Urutkan:</span>${sb('desc','Uang cair terbanyak')}${sb('asc','Uang cair terendah')}${sb('nama','Nama A–Z')}</div>`;
+  if(!gs.length){
+    $('profit').innerHTML=h+'<div class="empty">Belum ada order dengan uang cair positif pada data ini. Pastikan file income dan file Semua pesanan sudah diupload.</div>';
+    $('pager').innerHTML='';return;
+  }
+  h+=`<div class="pf-bulk"><div><label>Isi biaya operasional yang sama untuk semua kelompok (per paket)</label><input type="text" id="pfOpsAll" class="pf-in" inputmode="decimal" placeholder="mis. 1.500" style="width:200px"></div><button class="btn" id="pfApply" type="button">Terapkan ke semua</button></div>`;
+  h+=`<div class="pf-warn" id="pfMiss"></div>`;
+  const th=(t,c)=>`<th class="${c||''}" style="cursor:default">${t}</th>`;
+  h+=`<div class="tablewrap"><table style="min-width:980px"><thead><tr>${th('Nama kelompok')}${th('Jumlah order','num')}${th('Rata-rata uang cair per order','num')}${th('Total uang cair','num')}${th('Modal per paket','num')}${th('Biaya operasional per paket','num')}${th('Profit per paket (rata-rata)','num')}${th('Total profit','num')}</tr></thead><tbody>`;
+  gs.forEach((g,i)=>{
+    const s=pfStore[g.key]||{};
+    const multi=g.label!==g.name;
+    const rng=Math.round(g.min)!==Math.round(g.max)?`<br><small class="zero">${rp(g.min)} – ${rp(g.max)}</small>`:'';
+    h+=`<tr><td>${esc(g.label)}${multi?`<br><button type="button" class="link" data-act="copy" data-i="${i}" style="font-size:12px">↧ salin modal &amp; operasional ke semua nominal lain dari barang ini</button>`:''}</td><td class="num">${g.n}</td><td class="num">${rp(g.amt)}${rng}</td><td class="num">${rp(g.sum)}</td>`+
+      `<td class="num"><input class="pf-in" type="text" inputmode="decimal" data-i="${i}" data-f="m" value="${esc(s.m||'')}" placeholder="0"></td>`+
+      `<td class="num"><input class="pf-in" type="text" inputmode="decimal" data-i="${i}" data-f="o" value="${esc(s.o||'')}" placeholder="0"></td>`+
+      `<td class="num" id="pfP${i}"></td><td class="num" id="pfT${i}"></td></tr>`;
+  });
+  h+=`<tr class="pf-total"><td>TOTAL</td><td class="num" id="pfTn"></td><td class="num"></td><td class="num" id="pfTc"></td><td class="num" id="pfTm" title="Total modal (modal × jumlah order)"></td><td class="num" id="pfTo" title="Total operasional (operasional × jumlah order)"></td><td class="num"></td><td class="num" id="pfTp"></td></tr>`;
+  h+=`</tbody></table></div>`;
+  h+=`<div class="pf-grand"><span>TOTAL PROFIT SEMUA KELOMPOK<br><small style="color:var(--muted)">= total uang cair − total modal − total biaya operasional</small></span><strong id="pfGrand"></strong></div>`;
+  const info=[];
+  if(nNeg)info.push(`${nNeg} order potongan negatif (${rp(vNeg)}) tidak ikut dikelompokkan dan tidak mengurangi profit di sini`);
+  if(nAdj)info.push(`${nAdj} penggantian dana platform (${rp(vAdj)}) tidak ikut dikelompokkan`);
+  if(nEst)info.push(`${nEst} order estimasi/Dikirim (${rp(vEst)}) belum cair, tidak dihitung`);
+  if(info.length)h+=`<div class="rnote" style="margin-top:10px">Info: ${esc(info.join('; '))}.</div>`;
+  $('profit').innerHTML=h;
+  $('pager').innerHTML='';
+  updateProfit();
+}
+function profitAoa(){
+  const gs=profitGroups(),E='';
+  const rows=gs.map(g=>{const c=pfCalc(g);return [g.label,g.n,g.amt,g.sum,c.mo,c.op,c.per,c.tot]});
+  const T=gs.reduce((a,g)=>{a.n+=g.n;a.c+=g.sum;a.p+=pfCalc(g).tot;return a},{n:0,c:0,p:0});
+  return [['Nama Kelompok','Jumlah Order','Rata-rata Uang Cair per Order','Total Uang Cair','Modal per Paket','Biaya Operasional per Paket','Profit per Paket (rata-rata)','Total Profit'],
+    ...rows,['TOTAL',T.n,E,T.c,E,E,E,T.p]];
+}
+$('profit').addEventListener('input',e=>{
+  const el=e.target.closest('.pf-in[data-i]');if(!el)return;
+  const g=(state.pfGroups||[])[+el.dataset.i];if(!g)return;
+  (pfStore[g.key]||(pfStore[g.key]={}))[el.dataset.f]=el.value;
+  pfSave();updateProfit();
+});
+$('profit').addEventListener('change',e=>{
+  if(e.target.id!=='pfShip')return;
+  pfIgnoreShip=e.target.checked;
+  try{localStorage.setItem(PFOPT,pfIgnoreShip?'1':'0')}catch(x){}
+  renderProfit();
+});
+$('profit').addEventListener('toggle',e=>{if(e.target.id==='pfRulesBox')pfRulesOpen=e.target.open},true);
+$('profit').addEventListener('change',e=>{
+  const el=e.target.closest('[data-rf]');if(!el)return;
+  const r=pfRules[+el.dataset.ri];if(!r)return;
+  r[el.dataset.rf]=el.value;pfRulesSave();renderProfit();
+});
+$('profit').addEventListener('click',e=>{
+  if(e.target.id==='pfRuleAdd'){pfRules.push({name:'',date:''});pfRulesOpen=true;pfRulesSave();renderProfit();return}
+  const dl=e.target.closest('[data-rdel]');
+  if(dl){pfRules.splice(+dl.dataset.rdel,1);pfRulesSave();renderProfit();return}
+  const so=e.target.closest('[data-pfsort]');
+  if(so){pfSort=so.dataset.pfsort;renderProfit();return}
+  const cp=e.target.closest('[data-act=copy]');
+  if(cp){
+    const gs=state.pfGroups||[],src=gs[+cp.dataset.i];if(!src)return;
+    const s=pfStore[src.key]||{};
+    gs.forEach((g,i)=>{
+      if(g.name!==src.name)return;
+      pfStore[g.key]={m:s.m||'',o:s.o||''};
+      document.querySelectorAll('.pf-in[data-i="'+i+'"]').forEach(el=>{el.value=pfStore[g.key][el.dataset.f]||''});
+    });
+    pfSave();updateProfit();return;
+  }
+  if(e.target.id!=='pfApply')return;
+  const v=$('pfOpsAll').value;
+  (state.pfGroups||[]).forEach(g=>{(pfStore[g.key]||(pfStore[g.key]={})).o=v});
+  pfSave();renderProfit();
+});
 
 /* ---------- event ---------- */
 let t;
@@ -778,6 +1015,58 @@ function setVisible(on){
 $('prodAll').addEventListener('click',()=>setVisible(true));
 $('prodNone').addEventListener('click',()=>setVisible(false));
 
+/* ---------- atur produk dikecualikan ---------- */
+const xs={rows:[],q:'',changed:false};
+function xBuild(){
+  const m=new Map();
+  const add=(n,c)=>{const k=normName(n);if(!k)return;const e=m.get(k);if(e)e.c+=c;else m.set(k,{n:String(n).replace(/\s+/g,' ').trim(),c})};
+  if(state.orders)for(const o of state.orders.values())new Set(o.bases.map(normName)).forEach(k=>{const b=o.bases.find(x=>normName(x)===k);add(b,1)});
+  for(const [k,n] of exclMap)if(!m.has(k))m.set(k,{n,c:0});
+  xs.rows=[...m.entries()].map(([k,v])=>({k,n:exclMap.get(k)||v.n,c:v.c})).sort((a,b)=>(exclMap.has(b.k)-exclMap.has(a.k))||(b.c-a.c)||a.n.localeCompare(b.n));
+}
+function xDraw(){
+  const q=xs.q.trim().toLowerCase();
+  const rows=xs.rows.filter(r=>!q||r.n.toLowerCase().includes(q));
+  $('xCnt').textContent=exclMap.size+' dikecualikan'+(state.orders?' · '+xs.rows.length+' produk di file':' · file Semua pesanan belum diupload');
+  $('xList').innerHTML=rows.map(r=>{const off=exclMap.has(r.k);return `<button type="button" class="xrow ${off?'off':''}" data-k="${esc(r.k)}"><span class="t">${esc(r.n)}<small>${state.orders?r.c+' pesanan':'—'}${off?' · dikecualikan':''}</small></span><span class="sw ${off?'on':''}"></span></button>`}).join('')||'<div class="empty">Tidak ada produk yang cocok.</div>';
+}
+function xOpen(){xBuild();xs.q='';xs.changed=false;$('xSearch').value='';$('xImp').style.display='none';$('xMsg').textContent='';xDraw();$('xOv').classList.add('open')}
+function xClose(){
+  if(!$('xOv').classList.contains('open'))return;
+  $('xOv').classList.remove('open');
+  if(xs.changed&&(state.income||state.orders)){state.page=1;rebuild()}
+  else if(xs.changed)$('exclInfo').textContent='';
+  xs.changed=false;
+}
+$('btnExcl').addEventListener('click',xOpen);
+$('xClose').addEventListener('click',xClose);
+$('xOv').addEventListener('click',e=>{if(e.target===$('xOv'))xClose()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')xClose()});
+$('xSearch').addEventListener('input',e=>{xs.q=e.target.value;xDraw()});
+$('xList').addEventListener('click',e=>{
+  const b=e.target.closest('[data-k]');if(!b)return;
+  const k=b.dataset.k,r=xs.rows.find(x=>x.k===k);if(!r)return;
+  if(exclMap.has(k))exclMap.delete(k);else exclMap.set(k,r.n);
+  exclSave();xs.changed=true;xDraw();
+});
+$('xCopy').addEventListener('click',async()=>{
+  const t=[...exclMap.values()].join('\n');
+  try{await navigator.clipboard.writeText(t);$('xMsg').textContent='Tersalin ('+exclMap.size+' nama)'}
+  catch(e){$('xImp').style.display='block';$('xImp').value=t;$('xImp').select();$('xMsg').textContent='Salin manual dari kotak di atas'}
+});
+$('xImport').addEventListener('click',()=>{
+  const ta=$('xImp');
+  if(ta.style.display!=='block'){ta.style.display='block';ta.value='';ta.focus();$('xMsg').textContent='Tempel daftar, lalu tekan "Impor daftar" lagi';return}
+  const names=ta.value.split(/\r?\n/).map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean);
+  if(!names.length){ta.style.display='none';return}
+  exclMap.clear();names.forEach(n=>exclMap.set(normName(n),n));
+  exclSave();xs.changed=true;ta.style.display='none';xBuild();xDraw();$('xMsg').textContent='Diimpor: '+exclMap.size+' nama';
+});
+$('xDefault').addEventListener('click',()=>{
+  if(!confirm('Kembalikan daftar ke isi awal ('+EXCLUDED.length+' produk)? Perubahan Anda akan hilang.'))return;
+  exclSeed();exclSave();xs.changed=true;xBuild();xDraw();
+});
+
 /* ---------- ekspor ---------- */
 const HEAD=['Order ID','Nama Produk','Pesanan Selesai','Jumlah Penyelesaian Pembayaran','Tanggal Pembuatan Pesanan','Tanggal Pembayaran','Keterangan Dana','Keterangan'];
 const danaNote=r=>r.kel==='est'?'Estimasi (belum cair)':r.kel==='neg'?'Potongan (tidak masuk uang cair)':r.bayar>0?'Sudah cair':'-';
@@ -816,6 +1105,8 @@ $('btnExcel').addEventListener('click',()=>{
   XLSX.utils.book_append_sheet(wb,ws2,'Rekap Produk');
   const ws3=XLSX.utils.aoa_to_sheet(reportAoa());ws3['!cols']=[{wch:52},{wch:55},{wch:18},{wch:16},{wch:22},{wch:20},{wch:18}];
   XLSX.utils.book_append_sheet(wb,ws3,'Laporan Keuangan');
+  const ws4=XLSX.utils.aoa_to_sheet(profitAoa());ws4['!cols']=[{wch:60},{wch:14},{wch:20},{wch:18},{wch:16},{wch:24},{wch:16},{wch:18}];
+  XLSX.utils.book_append_sheet(wb,ws4,'Hitung Profit');
   XLSX.writeFile(wb,'rekap-pesanan.xlsx');
 });
 
@@ -828,7 +1119,8 @@ $('btnSend').addEventListener('click',async()=>{
   const payload={token,sheets:[
     {name:'Rekap Order',values:detailAoa(),textCols:[0],dateCols:[4,5],moneyCols:[3]},
     {name:'Rekap Produk',values:produkAoa(),textCols:[],dateCols:[],moneyCols:[3,4,5,6,7]},
-    {name:'Laporan Keuangan',values:reportAoa(),textCols:[0],dateCols:[4,5],moneyCols:[3]}
+    {name:'Laporan Keuangan',values:reportAoa(),textCols:[0],dateCols:[4,5],moneyCols:[3]},
+    {name:'Hitung Profit',values:profitAoa(),textCols:[],dateCols:[],moneyCols:[2,3,4,5,6,7]}
   ]};
   const btn=$('btnSend');btn.disabled=true;btn.textContent='Mengirim…';
   try{
