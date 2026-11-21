@@ -350,9 +350,9 @@ input[type=text].pf-in.w{width:100%;text-align:left}
 
 <div class="modal-ov" id="xOv">
   <div class="modal" role="dialog" aria-modal="true" aria-label="Produk dikecualikan">
-    <div class="modal-h"><div><b>Produk dikecualikan</b><span id="xCnt"></span></div><button class="ib primary" id="xClose" data-tip="Selesai dan tutup"><i data-ic="check"></i> Selesai</button></div>
+    <div class="modal-h"><div><b>Pemilik produk: owner 1 atau owner 2</b><span id="xCnt"></span></div><button class="ib primary" id="xClose" data-tip="Simpan sebagai aturan tetap"><i data-ic="check"></i> Simpan</button></div>
     <div class="modal-b">
-      <div class="xnote">Nyalakan saklar pada produk yang <b>tidak mau dibaca</b>. Pesanan produk itu disembunyikan dari semua tabel dan hitungan. Pesanan berisi beberapa produk baru disembunyikan kalau <b>semua</b> produknya dikecualikan. Pilihan tersimpan di browser ini.</div>
+      <div class="xnote">Sakelar <b>nyala = milik owner 2</b> (tidak dihitung di saldo kamu), sakelar mati = owner 1. Pesanan produk itu disembunyikan dari semua tabel dan hitungan. Pesanan berisi beberapa produk baru disembunyikan kalau <b>semua</b> produknya dikecualikan. Klik <b>Simpan</b> supaya jadi aturan tetap: tersimpan ke spreadsheet dan sama di semua perangkat.</div>
       <input type="text" id="xSearch" placeholder="Cari nama produk…">
       <div id="xList" style="margin-top:8px"></div>
       <textarea id="xImp" placeholder="Tempel daftar nama produk, satu nama per baris. Daftar yang sekarang akan diganti."></textarea>
@@ -391,9 +391,9 @@ const EXCLUDED=[
   "PAKET OKE ISI 6 spesial jajan lebarann",
   "PAKET SIAP ISI 7 spesial jajan lebaran",
   "PAKET SIP ISI 5 spesial jajan lebaran",
-  "PAKET SIP ISI 6 spesial jajan lebaran  Manis  Cemilan",
+  "PAKET SIP ISI 6 spesial jajan lebaran Manis Cemilan",
   "PAKET YES ISI 6 spesial jajan lebaran",
-  "PAKET YOI ISI 6 spesial jajan lebaran  Manis  Cemilan",
+  "PAKET YOI ISI 6 spesial jajan lebaran Manis Cemilan",
   "PAKET PARCEL ISI 6 spesial jajan lebaran",
   "PAKET REZA ISI 6 SPESIAL JAJAN LEBARAN",
   "PAKET LOVE ISI 6 SPESIAL JAJAN LEBARAN",
@@ -406,7 +406,23 @@ const EXCLUDED=[
   "PAKET ELITE ISI 8 SPESIAL JAJAN LEBARAN",
   "PAKET TAS ISI 6 spesial hampers lebaran",
   "PAKET MANTUL ISI 6 SPESIAL JAJAN LEBARAN",
-  "LIVE PAKET MANTAP ISI 6 spesial jajan lebaran"
+  "LIVE PAKET MANTAP ISI 6 spesial jajan lebaran",
+  "PAKET KHONG GUAN ISI 8 SPESIAL JAJAN LEBARAN",
+  "PAKET YOI ISI 7 spesial jajan lebaran Manis Cemilan",
+  "JAJAN TOPLES LEBARAN SPESIAL CAMPUR Chocolate Food Snack Toples Makanan",
+  "PAKET ENDUL ISI 7 SPESIAL JAJAN LEBARAN",
+  "PAKET B ISI 6 SPESIAL JAJAN LEBARAN",
+  "PAKET GREAT ISI 7 SPESIAL JAJAN LEBARAN",
+  "PAKET GOOD ISI 6 SPESIAL JAJAN LEBARAN",
+  "PAKET A ISI 6 SPESIAL JAJAN LEBARAN",
+  "ROMANCE 700GR",
+  "PAKET C ISI 6 SPESIAL JAJAN LEBARAN",
+  "HOCKGUAN 1.350GR",
+  "PAKET A ISI 5 SPESIAL JAJAN LEBARAN",
+  "PAKET OKE ISI 7 SPESIAL JAJAN LEBARAN",
+  "PAKET C ISI 6 SPESIAL JAJAN LEBARAN KHONG GUAN",
+  "HOCK GUAN KALENG 1.350gr",
+  "HOCKGUAN 1.350GR JAJAN LEBARAN"
 ];
 const normName=s=>String(s).replace(/\s+/g,' ').trim().toLowerCase();
 /* Daftar produk dikecualikan: disimpan di browser (localStorage) dan diatur lewat tombol "Atur produk dikecualikan".
@@ -521,7 +537,7 @@ async function readOne(file){
     const ws=wb.Sheets[name];fixRef(ws);
     const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
     let h=findHeader(rows,r=>r.includes('ID Pesanan/Penyesuaian'));
-    if(h>=0){parseIncome(rows,h);setName('Income',file.name);return}
+    if(h>=0){parseIncome(rows,h);lgReadFile(wb);setName('Income',file.name);return}
     h=findHeader(rows,r=>r.includes('Order ID')&&r.includes('Product Name'));
     if(h>=0){parseOrders(rows,h);setName('Orders',file.name);return}
   }
@@ -1207,19 +1223,21 @@ function xBuild(){
   const m=new Map();
   const add=(n,c)=>{const k=normName(n);if(!k)return;const e=m.get(k);if(e)e.c+=c;else m.set(k,{n:String(n).replace(/\s+/g,' ').trim(),c})};
   if(state.orders)for(const o of state.orders.values())new Set(o.bases.map(normName)).forEach(k=>{const b=o.bases.find(x=>normName(x)===k);add(b,1)});
+  for(const e of lg.ent.values())(e.b||[]).forEach(b=>add(b,0));
   for(const [k,n] of exclMap)if(!m.has(k))m.set(k,{n,c:0});
   xs.rows=[...m.entries()].map(([k,v])=>({k,n:exclMap.get(k)||v.n,c:v.c})).sort((a,b)=>(exclMap.has(b.k)-exclMap.has(a.k))||(b.c-a.c)||a.n.localeCompare(b.n));
 }
 function xDraw(){
   const q=xs.q.trim().toLowerCase();
   const rows=xs.rows.filter(r=>!q||r.n.toLowerCase().includes(q));
-  $('xCnt').textContent=exclMap.size+' dikecualikan'+(state.orders?' · '+xs.rows.length+' produk di file':' · file Semua pesanan belum diupload');
-  $('xList').innerHTML=rows.map(r=>{const off=exclMap.has(r.k);return `<button type="button" class="xrow ${off?'off':''}" data-k="${esc(r.k)}"><span class="t">${esc(r.n)}<small>${state.orders?r.c+' pesanan':'—'}${off?' · dikecualikan':''}</small></span><span class="sw ${off?'on':''}"></span></button>`}).join('')||'<div class="empty">Tidak ada produk yang cocok.</div>';
+  $('xCnt').textContent=exclMap.size+' milik owner 2'+(state.orders?' · '+xs.rows.length+' produk di file':' · file Semua pesanan belum diupload');
+  $('xList').innerHTML=rows.map(r=>{const off=exclMap.has(r.k);return `<button type="button" class="xrow ${off?'off':''}" data-k="${esc(r.k)}"><span class="t">${esc(r.n)}<small>${state.orders&&r.c?r.c+' pesanan · ':''}${off?'owner 2':'owner 1'}${lg.seen.has(r.k)?'':' · BARU, belum ditentukan'}</small></span><span class="sw ${off?'on':''}"></span></button>`}).join('')||'<div class="empty">Tidak ada produk yang cocok.</div>';
 }
 function xOpen(){xBuild();xs.q='';xs.changed=false;$('xSearch').value='';$('xImp').style.display='none';$('xMsg').textContent='';xDraw();$('xOv').classList.add('open')}
 function xClose(){
   if(!$('xOv').classList.contains('open'))return;
   $('xOv').classList.remove('open');
+  xs.rows.forEach(r=>lg.seen.add(r.k));lgSave();lgPushMeta().then(()=>toast('Aturan owner tersimpan')).catch(()=>toast('Tersimpan di browser, belum ke spreadsheet'));
   if(xs.changed&&(state.income||state.orders)){state.page=1;rebuild()}
   else if(xs.changed)$('exclInfo').textContent='';
   xs.changed=false;
@@ -1303,9 +1321,9 @@ $('btnExcel').addEventListener('click',()=>{
    Upload ulang file yang sama tidak menggandakan apa pun. Nominal positif masuk saldo, nominal negatif (pengembalian) mengurangi saldo,
    transfer yang kamu catat juga mengurangi saldo. Disimpan di browser dan disalin ke Google Spreadsheet lewat Apps Script. */
 const LGKEY='rekapLedger';
-const lg={ent:new Map(),tr:[],start:'',msg:'',last:null};
-try{const x=JSON.parse(localStorage.getItem(LGKEY)||'null');if(x){lg.ent=new Map(x.e.map(e=>[e.k,e]));lg.tr=x.t||[];lg.start=x.s||''}}catch(e){}
-const lgSave=()=>{try{localStorage.setItem(LGKEY,JSON.stringify({e:[...lg.ent.values()],t:lg.tr,s:lg.start}))}catch(e){}};
+const lg={ent:new Map(),tr:[],start:'',msg:'',last:null,seen:new Set(),file:null};
+try{const x=JSON.parse(localStorage.getItem(LGKEY)||'null');if(x){lg.ent=new Map(x.e.map(e=>[e.k,e]));lg.tr=x.t||[];lg.start=x.s||'';lg.seen=new Set(x.p||[])}}catch(e){}
+const lgSave=()=>{try{localStorage.setItem(LGKEY,JSON.stringify({e:[...lg.ent.values()],t:lg.tr,s:lg.start,p:[...lg.seen]}))}catch(e){}};
 const lgUrl=()=>GS_URL.trim();
 async function lgPost(body){
   const u=lgUrl();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(u))throw new Error('GS_URL di index.html belum diisi');
@@ -1316,7 +1334,7 @@ async function lgPush(list){
   const rowOf=e=>[e.k,e.id,e.tgl,e.amt,e.p,e.st,JSON.stringify(e.b||[]),e.up];
   for(let i=0;i<list.length;i+=2000)await lgPost({action:'ledger_upsert',rows:list.slice(i,i+2000).map(rowOf)});
 }
-const lgPushMeta=()=>lgPost({action:'meta_save',transfers:lg.tr,start:lg.start});
+const lgPushMeta=()=>lgPost({action:'meta_save',transfers:lg.tr,start:lg.start,prods:{o2:[...exclMap.values()],seen:[...lg.seen]}});
 async function lgLoadRemote(){
   const j=await lgPost({action:'ledger_load'});
   if(j.rows.length||j.transfers.length){
@@ -1324,6 +1342,7 @@ async function lgLoadRemote(){
     lg.tr=j.transfers.map(t=>({id:String(t[0]),tgl:String(t[1]),amt:Number(t[2])||0,ket:String(t[3]||'')}));
     lg.start=String(j.start||'');lgSave();
   }
+  if(j.prods&&Array.isArray(j.prods.o2)){exclMap.clear();j.prods.o2.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()));lg.seen=new Set(j.prods.seen||[]);exclSave();lgSave();if(state.income||state.orders)rebuild()}
   lg.msg='Tersambung ke spreadsheet ('+lg.ent.size+' transaksi dimuat)';
 }
 const lgReady=(async()=>{try{if(lgUrl())await lgLoadRemote()}catch(e){lg.msg='Spreadsheet belum tersambung: '+e.message}})();
@@ -1348,17 +1367,20 @@ function lgCalc(){
   const sh=$('fShowExcl').checked,ex=e=>!sh&&e.b&&e.b.length&&e.b.every(x=>exclMap.has(normName(x)));
   const ok=t=>!lg.start||t>=lg.start,days=new Map();
   const g=t=>{let d=days.get(t);if(!d){d={t,in:0,neg:0,out:0,n:0};days.set(t,d)}return d};
-  let kirim=0,nk=0;
-  for(const e of lg.ent.values()){if(ex(e)||!ok(e.tgl))continue;const d=g(e.tgl);d.n++;if(e.amt>0){d.in+=e.amt;if(e.st==='Dikirim'){kirim+=e.amt;nk++}}else d.neg+=e.amt}
+  let kirim=0,nk=0;const unk={n:0,s:0};
+  for(const e of lg.ent.values()){if(ex(e)||!ok(e.tgl))continue;const d=g(e.tgl);d.n++;if((e.b||[]).some(x=>!lg.seen.has(normName(x)))){unk.n++;unk.s+=e.amt}if(e.amt>0){d.in+=e.amt;if(e.st==='Dikirim'){kirim+=e.amt;nk++}}else d.neg+=e.amt}
   for(const t of lg.tr)if(ok(t.tgl))g(t.tgl).out+=t.amt;
   const arr=[...days.values()].sort((a,b)=>a.t<b.t?-1:1);let run=0;
   for(const d of arr){run+=d.in+d.neg-d.out;d.run=run}
   const sum=k=>arr.reduce((a,d)=>a+d[k],0);
-  return {arr:arr.reverse(),in:sum('in'),neg:sum('neg'),out:sum('out'),saldo:run,kirim,nk};
+  return {unk,arr:arr.reverse(),in:sum('in'),neg:sum('neg'),out:sum('out'),saldo:run,kirim,nk};
 }
 function lgRender(){
   const c=lgCalc(),N=new Intl.NumberFormat('id-ID').format;
   let h=`<div class="cards"><div class="stat"><span>Uang masuk (sudah cair)</span><strong>${rp(c.in)}</strong></div><div class="stat tdkc"><span>Pengembalian / potongan</span><strong>${rp(c.neg)}</strong></div><div class="stat"><span>Sudah kamu transfer</span><strong>${rp(-c.out)}</strong></div><div class="stat netc"><span>SALDO (belum ditransfer)</span><strong>${rp(c.saldo)}</strong></div></div>`;
+  if(c.unk.n)h+=`<div class="notice" style="display:block"><b>${c.unk.n} transaksi (${rp(c.unk.s)})</b> berasal dari produk yang belum kamu tentukan pemiliknya, sementara dihitung milik owner 1. <button class="btn" data-act="openprod">Atur produk</button></div>`;
+  const f=lg.file;
+  h+=`<div class="panel"><b>Cek dengan Seller Center</b><div class="hint">${f?'Menurut file income: Earnings '+rp(f.earn)+' dikurangi penarikan '+rp(-f.wd)+' = <b>'+rp(f.earn+f.wd)+'</b> (semua owner, semua produk).':'Upload file income untuk menghitung.'}</div><div class="grid2" style="grid-template-columns:1fr 2fr"><div><label>Saldo di Seller Center (Rp)</label><input type="text" id="scBal"></div><div id="scOut" class="hint"></div></div></div>`;
   h+=`<div class="rnote">Uang masuk sudah termasuk ${rp(c.kirim)} dari ${c.nk} pesanan yang statusnya masih Dikirim. ${lg.last?'Upload terakhir: '+esc(lg.last.at)+' ('+lg.last.nNew+' transaksi baru, '+lg.last.nUpd+' berubah).':'Upload file income + Semua pesanan untuk menambah data.'}</div>`;
   h+=`<div class="panel"><b>Catat transfer</b><div class="grid2" style="grid-template-columns:1fr 1fr 2fr auto auto"><div><label>Tanggal</label><input type="date" id="trT" value="${isoOf(new Date())}"></div><div><label>Nominal (Rp)</label><input type="text" id="trA" placeholder="${N(Math.max(0,Math.round(c.saldo)))}"></div><div><label>Catatan</label><input type="text" id="trN" placeholder="mis. transfer ke owner B"></div><button class="btn primary" data-act="addtr">Catat</button><button class="btn" data-act="fulltr" data-tip="Isi nominal sebesar seluruh saldo">Isi = saldo</button></div>`;
   if(lg.tr.length)h+=`<div class="tablewrap" style="margin-top:10px"><table><thead><tr><th style="cursor:default">Tanggal</th><th class="num" style="cursor:default">Nominal</th><th style="cursor:default">Catatan</th><th></th></tr></thead><tbody>${lg.tr.map((t,i)=>({t,i})).sort((a,b)=>a.t.tgl<b.t.tgl?1:-1).map(({t,i})=>`<tr><td>${showDate(t.tgl)}</td><td class="num">${rp(t.amt)}</td><td>${esc(t.ket)}</td><td><button class="ib" data-act="deltr" data-i="${i}" data-tip="Hapus catatan ini">${ic('x')}</button></td></tr>`).join('')}</tbody></table></div>`;
@@ -1366,10 +1388,13 @@ function lgRender(){
   h+=`<div class="tablewrap"><table><thead><tr><th style="cursor:default">Tanggal bayar</th><th class="num" style="cursor:default">Transaksi</th><th class="num" style="cursor:default">Masuk</th><th class="num" style="cursor:default">Pengembalian</th><th class="num" style="cursor:default">Transfer</th><th class="num" style="cursor:default">Saldo berjalan</th></tr></thead><tbody>${c.arr.map(d=>`<tr><td>${showDate(d.t)}</td><td class="num">${d.n}</td><td class="num">${d.in?rp(d.in):'-'}</td><td class="num neg">${d.neg?rp(d.neg):'-'}</td><td class="num">${d.out?rp(-d.out):'-'}</td><td class="num"><b>${rp(d.run)}</b></td></tr>`).join('')||'<tr><td colspan="6" class="empty">Belum ada data. Upload file income dan Semua pesanan.</td></tr>'}</tbody></table></div>`;
   $('saldo').innerHTML=h;
 }
+function lgReadFile(wb){const ws=wb.Sheets['Riwayat penarikan'];if(!ws)return;fixRef(ws);let earn=0,wd=0;XLSX.utils.sheet_to_json(ws).forEach(r=>{const v=Number(r['Total'])||0;if(r['Jenis transaksi']==='Withdrawal')wd+=v;else if(r['Jenis transaksi']==='Earnings')earn+=v});lg.file={earn,wd}}
+$('saldo').addEventListener('input',e=>{if(e.target.id==='scBal'){const v=parseNum(e.target.value),f=lg.file,x=f?f.earn+f.wd:0;$('scOut').textContent=f&&v?'Selisih: '+rp(v-x)+(v===x?' (cocok)':' (tidak cocok)'):''}});
 $('saldo').addEventListener('change',e=>{if(e.target.id==='lgStart'){lg.start=e.target.value;lgSave();lgRender();lgPushMeta().catch(()=>{})}});
 $('saldo').addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
   if(a==='fulltr'){$('trA').value=Math.max(0,Math.round(lgCalc().saldo))}
+  else if(a==='openprod')xOpen();
   else if(a==='addtr'){
     const t=$('trT').value,v=parseNum($('trA').value);if(!t||!(v>0)){toast('Isi tanggal dan nominal');return}
     lg.tr.push({id:'T'+Date.now(),tgl:t,amt:v,ket:$('trN').value.trim()});lgSave();lgRender();
