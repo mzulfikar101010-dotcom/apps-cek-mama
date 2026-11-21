@@ -345,17 +345,6 @@ input[type=text].pf-in.w{width:100%;text-align:left}
     <div id="profit" style="display:none"></div>
     <div id="saldo" style="display:none"></div>
 
-    <div class="panel" style="margin-top:16px">
-      <details>
-        <summary><i data-ic="send"></i> Kirim ke Google Spreadsheet</summary>
-        <div class="grid2">
-          <div><label>URL Web App Google Apps Script</label><input type="url" id="gsUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
-          <div><label>Token (kalau kamu isi di Code.gs)</label><input type="password" id="gsToken" placeholder="opsional"></div>
-          <div><button class="btn primary" id="btnSend">Kirim data</button></div>
-        </div>
-        <div class="hint" id="sendHint">Yang dikirim: data yang sedang tampil sesuai filter (sheet Rekap Order, Rekap Produk, Laporan Keuangan, dan Hitung Profit). Sheet lama akan ditimpa.</div>
-      </details>
-    </div>
   </div>
 </div>
 
@@ -381,6 +370,9 @@ input[type=text].pf-in.w{width:100%;text-align:left}
 
 <script>
 "use strict";
+/* ===== SAMBUNGAN GOOGLE SPREADSHEET (isi sekali di sini, tidak perlu isi di aplikasi) ===== */
+const GS_URL='https://script.google.com/macros/s/AKfycbyhwJSjDB0IvGDzcgnQRyG7A0BXJqZlDt-AtjdQG1ZpOncyLw_0AJZUTedDQEyYowYo/exec';
+const GS_TOKEN='';   // isi sama dengan TOKEN di Code.gs kalau kamu pakai token
 /* ===== DAFTAR PRODUK YANG DIKECUALIKAN (tidak dibaca) =====
    Mau tambah/hapus produk? Edit daftar ini, satu nama per baris.
    Pencocokan tidak peduli huruf besar/kecil dan spasi ganda. */
@@ -1305,7 +1297,7 @@ $('btnExcel').addEventListener('click',()=>{
 });
 
 /* ---------- kirim ke Google Sheets ---------- */
-try{$('gsUrl').value=localStorage.getItem('gsUrl')||'';$('gsToken').value=localStorage.getItem('gsToken')||''}catch(e){}
+
 /* ===== SALDO ===== */
 /* Buku saldo. Satu catatan = satu kejadian uang (Order ID + tanggal pembayaran) dengan nominalnya.
    Upload ulang file yang sama tidak menggandakan apa pun. Nominal positif masuk saldo, nominal negatif (pengembalian) mengurangi saldo,
@@ -1314,10 +1306,10 @@ const LGKEY='rekapLedger';
 const lg={ent:new Map(),tr:[],start:'',msg:'',last:null};
 try{const x=JSON.parse(localStorage.getItem(LGKEY)||'null');if(x){lg.ent=new Map(x.e.map(e=>[e.k,e]));lg.tr=x.t||[];lg.start=x.s||''}}catch(e){}
 const lgSave=()=>{try{localStorage.setItem(LGKEY,JSON.stringify({e:[...lg.ent.values()],t:lg.tr,s:lg.start}))}catch(e){}};
-const lgUrl=()=>($('gsUrl').value||'').trim();
+const lgUrl=()=>GS_URL.trim();
 async function lgPost(body){
-  const u=lgUrl();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(u))throw new Error('URL Apps Script belum diisi (bagian "Kirim ke Google Spreadsheet" di bawah)');
-  const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({token:$('gsToken').value},body))});
+  const u=lgUrl();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(u))throw new Error('GS_URL di index.html belum diisi');
+  const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({token:GS_TOKEN},body))});
   const j=await r.json();if(!j.ok)throw new Error(j.error||'gagal');return j;
 }
 async function lgPush(list){
@@ -1389,23 +1381,6 @@ $('saldo').addEventListener('click',async e=>{
 });
 /* ===== END SALDO ===== */
 
-$('btnSend').addEventListener('click',async()=>{
-  const url=$('gsUrl').value.trim(),token=$('gsToken').value;
-  if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(url)){$('sendHint').textContent='URL belum benar. Harus berakhiran /exec (lihat panduan di README).';return}
-  try{localStorage.setItem('gsUrl',url);localStorage.setItem('gsToken',token)}catch(e){}
-  const payload={token,sheets:[
-    {name:'Rekap Order',values:detailAoa(),textCols:[0],dateCols:[4,5],moneyCols:[3]},
-    {name:'Rekap Produk',values:produkAoa(),textCols:[],dateCols:[],moneyCols:[3,4,5,6,7]},
-    {name:'Laporan Keuangan',values:reportAoa(),textCols:[0],dateCols:[4,5],moneyCols:[3]},
-    {name:'Hitung Profit',values:profitAoa(),textCols:[],dateCols:[],moneyCols:[2,3,4,5,6,7,8]}
-  ]};
-  const btn=$('btnSend');btn.disabled=true;btn.textContent='Mengirim…';
-  try{
-    await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
-    $('sendHint').textContent='Terkirim ('+state.filtered.length+' baris). Buka spreadsheet kamu dan cek sheet "Rekap Order", "Rekap Produk", dan "Laporan Keuangan". Kalau kosong, cek token dan pengaturan deploy.';
-  }catch(err){$('sendHint').textContent='Gagal mengirim: '+err.message}
-  btn.disabled=false;btn.textContent='Kirim data';
-});
 </script>
 </body>
 </html>
