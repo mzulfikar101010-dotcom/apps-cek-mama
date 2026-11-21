@@ -3,98 +3,151 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rekap Pesanan &amp; Pencairan</title>
+<title>Rekap Pesanan, Pencairan &amp; Saldo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
-  --bg:#f5f6f8;--card:#fff;--text:#1d2330;--muted:#6b7280;--line:#e3e6ec;
-  --accent:#2563eb;--accent-soft:#e8effd;--ok:#15803d;--ok-bg:#e3f6ea;
-  --warn:#b45309;--warn-bg:#fdf1dc;--bad:#b91c1c;--bad-bg:#fde7e7;--gray-bg:#eceef2;
+  --bg:#f5f6fa;--card:#fff;--text:#1b2030;--muted:#6a7285;--line:#e5e8f0;
+  --accent:#4f5fe8;--accent-soft:#eceefd;--ok:#12803f;--ok-bg:#e1f5ea;
+  --warn:#a85a07;--warn-bg:#fdf0da;--bad:#c0262d;--bad-bg:#fde8e8;--gray-bg:#eef0f5;
+  --teal:#0f9b95;--teal-soft:#e3f3f2;--shadow:0 6px 24px rgba(20,30,60,.12);
 }
 @media (prefers-color-scheme:dark){
-  :root{--bg:#12151b;--card:#1b2029;--text:#e8ebf1;--muted:#9aa3b2;--line:#2c3340;
-  --accent:#6b9bff;--accent-soft:#1f2c47;--ok:#5fd68a;--ok-bg:#14301f;
-  --warn:#f2b45a;--warn-bg:#35280f;--bad:#ff8a8a;--bad-bg:#3a1818;--gray-bg:#272d38;}
+  :root{--bg:#0f1218;--card:#181c25;--text:#e9ecf3;--muted:#98a1b3;--line:#272d3a;
+  --accent:#8c97ff;--accent-soft:#222645;--ok:#5fd68a;--ok-bg:#133020;
+  --warn:#f2b45a;--warn-bg:#352a10;--bad:#ff8c8c;--bad-bg:#3b1a1a;--gray-bg:#242a36;
+  --teal:#2bb7b0;--teal-soft:#16322f;--shadow:0 8px 28px rgba(0,0,0,.5);}
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:1250px;margin:0 auto;padding:20px 16px 60px}
-h1{font-size:20px;margin:0 0 4px}
-.sub{color:var(--muted);margin:0 0 16px}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1320px;margin:0 auto;padding:22px 18px 70px}
+h1{font-size:21px;margin:0 0 2px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 16px;font-size:13px}
+.muted{color:var(--muted)}
+.ic{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.2em;flex:none}
+
+/* upload */
 .drops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-.drop{border:2px dashed var(--line);background:var(--card);border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:.15s}
+.drop{display:flex;align-items:center;gap:12px;border:1.5px dashed var(--line);background:var(--card);border-radius:14px;padding:12px 16px;cursor:pointer;transition:.15s;min-width:0}
 .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
 .drop.ok{border-style:solid;border-color:var(--ok)}
-.drop b{display:block;font-size:15px;margin-bottom:2px}
-.drop small{color:var(--muted)}
-.drop .fname{margin-top:6px;color:var(--ok);font-weight:600;word-break:break-all}
-.notice{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:8px 12px;margin-bottom:12px;display:none}
+.drop-ic{width:38px;height:38px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none;font-size:18px}
+.drop.ok .drop-ic{background:var(--ok-bg);color:var(--ok)}
+.drop b{display:block;font-size:14px}
+.drop small{color:var(--muted);font-size:12px}
+.drop .fname{color:var(--ok);font-weight:600;word-break:break-all;font-size:12.5px}
+.notice{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:9px 14px;margin-bottom:12px;display:none}
 .notice.err{background:var(--bad-bg);color:var(--bad)}
 #app{display:none}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:12px}
-.tdk{color:var(--bad)}
+
+/* kartu ringkasan */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.stat span{color:var(--muted);font-size:12.5px;display:block}
+.stat strong{font-size:22px;letter-spacing:-.01em}
 .stat.tdkc strong{color:var(--bad)}
-.b-ret{background:var(--bad-bg);color:var(--bad)}
-.neg{color:var(--bad);font-weight:600}
 .stat.netc strong{color:var(--ok)}
-.rsum{min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--card);overflow:hidden}
-.rsum td{padding:9px 12px;border-bottom:1px solid var(--line)}
-.rsum tr.total td{font-weight:700;font-size:16px;background:var(--teal-soft);border-bottom:0}
-.rsum tr.info td{color:var(--muted);font-size:13px}
-.rh{margin:20px 0 6px;font-size:15px}
-.rnote{color:var(--muted);font-size:12.5px;margin:2px 0 10px}
-.est{color:var(--warn);font-style:italic}
-.estl{font-size:11px;font-style:normal;opacity:.85}
 .stat.estc strong{color:var(--warn)}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
-.stat span{color:var(--muted);font-size:12px;display:block}
-.stat strong{font-size:20px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
-.filters{display:grid;grid-template-columns:2fr 1fr 1.4fr;gap:10px;margin-bottom:10px}
-.dates{display:grid;grid-template-columns:repeat(2,minmax(0,380px));gap:10px;margin-bottom:10px}
-label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
-input,select,button{font:inherit;color:var(--text)}
-input[type=text],input[type=date],input[type=url],input[type=password],select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
-input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.more{margin-bottom:14px}
+.more summary{cursor:pointer;color:var(--muted);font-size:12.5px;display:inline-flex;gap:6px;align-items:center;padding:2px 0;list-style:none}
+.more summary::-webkit-details-marker{display:none}
+.more summary:hover{color:var(--text)}
+.more[open] summary .ic{transform:rotate(180deg)}
+.cards.small{margin:8px 0 0}
+.cards.small .stat{padding:10px 14px}
+.cards.small .stat strong{font-size:17px}
+.tipi{display:inline-grid;place-items:center;color:var(--muted);cursor:help;vertical-align:middle;margin-left:2px}
+.tipi .ic{width:14px;height:14px}
+
+/* panel & filter */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.f-row{display:grid;grid-template-columns:1.6fr 1.2fr 1fr 1fr;gap:10px}
+.f-row2{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.f-row2 .sp{flex:1}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+input,select,button,textarea{font:inherit;color:var(--text)}
+input[type=text],input[type=date],input[type=url],input[type=password],select{width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.chip{border:1px solid var(--line);background:var(--bg);border-radius:20px;padding:5px 12px;cursor:pointer}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:20px;padding:4px 12px;cursor:pointer;font-size:13px}
+.chip:hover{border-color:var(--accent)}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .chip em{font-style:normal;opacity:.75;margin-left:4px}
-.checks{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;color:var(--text)}
-.checks label{display:flex;gap:6px;align-items:center;margin:0;color:var(--text);font-size:13px}
-.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 14px;cursor:pointer}
+.hint{color:var(--muted);font-size:12px;margin-top:8px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 14px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
 .btn:hover{border-color:var(--accent)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn:disabled{opacity:.5;cursor:wait}
-.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:10px}
-.tabs{display:flex;gap:4px}
-.tab{padding:7px 14px;border-radius:8px;border:1px solid transparent;cursor:pointer;background:none}
-.tab.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
-.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.btn:disabled{opacity:.45;cursor:default}
+
+/* tombol ikon */
+.ib{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:34px;height:34px;padding:0 9px;border:1px solid var(--line);background:var(--card);border-radius:10px;cursor:pointer;color:var(--text);font-size:13px;list-style:none}
+.ib::-webkit-details-marker{display:none}
+.ib:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.ib.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.ib.primary:hover{filter:brightness(1.08);color:#fff;background:var(--accent)}
+.ib.sm{min-width:26px;height:26px;padding:0 6px;border-radius:8px;font-size:12px}
+.ib.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.ib:disabled{opacity:.4;cursor:default}
+.ib .ic{width:16px;height:16px}
+.ib.sm .ic{width:14px;height:14px}
+.link{background:none;border:0;color:var(--accent);cursor:pointer;padding:2px 0}
+
+/* tooltip global */
+#tip{position:fixed;z-index:200;display:none;max-width:280px;background:#111827;color:#fff;font-size:12.5px;line-height:1.4;padding:6px 10px;border-radius:8px;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.3);font-weight:400;text-align:left;white-space:normal}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:210}
+#toast.show{opacity:1;transform:translateX(-50%)}
+
+/* popover (details) */
+.pop{position:relative}
+.pop-body{position:absolute;right:0;top:calc(100% + 6px);z-index:40;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow);min-width:260px;display:flex;flex-direction:column;gap:8px}
+.pop-body label.ck{display:flex;gap:8px;align-items:center;margin:0;font-size:13px;color:var(--text)}
+
+/* tab */
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tabs{display:flex;gap:4px;background:var(--gray-bg);padding:4px;border-radius:12px}
+.tab{padding:6px 14px;border-radius:9px;border:0;cursor:pointer;background:none;color:var(--muted);font-weight:500}
+.tab:hover{color:var(--text)}
+.tab.on{background:var(--card);color:var(--accent);font-weight:600;box-shadow:0 1px 4px rgba(20,30,60,.12)}
+
+/* tabel */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
 table{border-collapse:collapse;width:100%;min-width:820px}
-th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-th{background:var(--bg);font-size:12px;color:var(--muted);position:sticky;top:0;white-space:nowrap;cursor:pointer;user-select:none}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--bg);font-size:12px;color:var(--muted);position:sticky;top:0;white-space:nowrap;cursor:pointer;user-select:none;font-weight:600}
+th:hover{color:var(--text)}
 th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:hover td{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
 tr:last-child td{border-bottom:0}
 td.id{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;white-space:nowrap}
-.badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap}
 .b-Selesai{background:var(--ok-bg);color:var(--ok)}
 .b-Dikirim{background:var(--warn-bg);color:var(--warn)}
-.b-Dibatalkan{background:var(--bad-bg);color:var(--bad)}
+.b-Dibatalkan,.b-ret{background:var(--bad-bg);color:var(--bad)}
 .b-other{background:var(--gray-bg);color:var(--muted)}
+.tdk{color:var(--bad)}
+.neg{color:var(--bad);font-weight:600}
+.pos{color:var(--ok);font-weight:600}
 .zero{color:var(--muted)}
-.pager{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px}
-.empty{padding:30px;text-align:center;color:var(--muted)}
+.est{color:var(--warn);font-style:italic}
+.estl{font-size:11px;font-style:normal;opacity:.85}
+.pager{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:14px;color:var(--muted)}
+.empty{padding:34px;text-align:center;color:var(--muted)}
+.rsum{min-width:0;border:0}
+.rsum td{padding:10px 14px;border-bottom:1px solid var(--line)}
+.rsum tr.total td{font-weight:700;font-size:16px;background:var(--teal-soft);border-bottom:0}
+.rsum tr.info td{color:var(--muted);font-size:13px}
+.rh{margin:22px 0 8px;font-size:15px}
+.rnote{color:var(--muted);font-size:12.5px;margin:2px 0 10px}
 details summary{cursor:pointer;font-weight:600}
-.grid2{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;margin-top:10px;align-items:end}
-.hint{color:var(--muted);font-size:12px;margin-top:8px}
 
-:root{--teal:#0f9b95;--teal-soft:#d9eeee}
-@media (prefers-color-scheme:dark){:root{--teal:#1fa8a1;--teal-soft:#1d3b3b}}
+/* kirim sheets */
+.grid2{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;margin-top:12px;align-items:end}
+
+/* pemilih tanggal */
 .rp{position:relative}
-.rp-field{width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;text-align:left}
-.rp-field:hover,.rp.open .rp-field{border-color:var(--teal)}
-.rp-t{flex:none;min-width:80px}
+.rp-field{width:100%;display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer;text-align:left}
+.rp-field:hover,.rp.open .rp-field{border-color:var(--accent)}
+.rp-t{flex:none;min-width:72px}
 .rp-t.ph{color:var(--muted)}
 .rp-sep{color:var(--muted)}
 .rp-sp{flex:1}
@@ -102,7 +155,7 @@ details summary{cursor:pointer;font-weight:600}
 .rp-x:hover{background:var(--gray-bg);color:var(--text)}
 .rp.has .rp-x{display:inline}
 .rp-ic{color:var(--muted);flex:none}
-.rp-pop{display:none;position:absolute;z-index:30;top:100%;left:0;margin-top:4px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:12px 0;width:max-content;max-width:94vw}
+.rp-pop{display:none;position:absolute;z-index:30;top:100%;left:0;margin-top:4px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 0;width:max-content;max-width:94vw}
 .rp-pop.right{left:auto;right:0}
 .rp.open .rp-pop{display:block}
 .rp-cals{display:grid;grid-template-columns:1fr 1fr}
@@ -119,39 +172,34 @@ details summary{cursor:pointer;font-weight:600}
 .rp-days button:hover:not(.out):not(.dis):not(.dark){background:var(--gray-bg);border-radius:6px}
 .rp-days button.out{color:var(--muted);opacity:.45;cursor:default}
 .rp-days button.dis{color:var(--muted);opacity:.6;background:var(--gray-bg);cursor:not-allowed}
-.rp-days button.inr{background:var(--teal-soft);border-radius:0}
-.rp-days button.dark{background:var(--teal);color:#fff;font-weight:700;border-radius:6px}
+.rp-days button.inr{background:var(--accent-soft);border-radius:0}
+.rp-days button.dark{background:var(--accent);color:#fff;font-weight:700;border-radius:6px}
 .rp-days button.today::after{content:"";position:absolute;left:50%;bottom:4px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
+
+/* pilih produk */
 .msel{position:relative}
-.msel-btn{width:100%;text-align:left;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+.msel-btn{width:100%;text-align:left;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+.msel-btn>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .msel-btn.partial{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
-.msel-pop{display:none;position:absolute;z-index:20;top:100%;left:0;margin-top:4px;width:min(460px,92vw);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.msel-pop{display:none;position:absolute;z-index:20;top:100%;left:0;margin-top:4px;width:min(460px,92vw);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:var(--shadow)}
 .msel-pop.open{display:block}
 .msel-actions{display:flex;gap:14px;margin:8px 0 4px}
-.link{background:none;border:0;color:var(--accent);cursor:pointer;padding:2px 0}
 .msel-list{max-height:280px;overflow-y:auto;border-top:1px solid var(--line);padding-top:4px}
 .mrow{display:flex;gap:8px;align-items:flex-start;padding:6px 4px;border-radius:6px;cursor:pointer;margin:0;font-size:13px;color:var(--text)}
 .mrow:hover{background:var(--bg)}
 .mrow input{margin-top:2px;flex:none}
 .mrow span{flex:1}
 .mrow em{font-style:normal;color:var(--muted);flex:none}
-@media (max-width:760px){
-  .drops,.filters,.grid2{grid-template-columns:1fr}
-  .cards{grid-template-columns:1fr 1fr}
-  .dates{grid-template-columns:1fr}
-  .rp-cals{grid-template-columns:1fr!important}
-  .rp-cal{width:auto!important}
-  .rp-cal+.rp-cal{border-left:0!important;border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
-}
 
-.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:60;padding:16px}
+/* modal produk dikecualikan */
+.modal-ov{position:fixed;inset:0;background:rgba(10,14,25,.55);display:none;align-items:center;justify-content:center;z-index:60;padding:16px}
 .modal-ov.open{display:flex}
-.modal{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;width:min(700px,100%);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.3)}
-.modal-h{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.modal{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:16px;width:min(700px,100%);max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.modal-h{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .modal-h b{font-size:16px;display:block}.modal-h span{color:var(--muted);font-size:12.5px}
-.modal-b{padding:12px 16px;overflow:auto;flex:1;min-height:120px}
-.modal-f{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;align-items:center}
-.xnote{background:var(--gray-bg);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.modal-b{padding:12px 18px;overflow:auto;flex:1;min-height:120px}
+.modal-f{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;align-items:center}
+.xnote{background:var(--gray-bg);border-radius:10px;padding:9px 12px;font-size:12.5px;color:var(--muted);margin-bottom:10px}
 .xrow{display:flex;gap:12px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;text-align:left;background:none;border-left:0;border-right:0;border-top:0;border-radius:0}
 .xrow:hover{background:var(--bg)}
 .xrow .t{flex:1;min-width:0;word-break:break-word}
@@ -160,35 +208,68 @@ details summary{cursor:pointer;font-weight:600}
 .sw{width:44px;height:26px;border-radius:13px;background:var(--line);position:relative;flex:none;transition:.15s}
 .sw::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s}
 .sw.on{background:var(--bad)}.sw.on::after{left:21px}
-#xImp{display:none;width:100%;min-height:120px;margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font:inherit;color:var(--text)}
-.pf-tbl td:first-child,.pf-tbl th:first-child{min-width:240px;max-width:320px}
-.pf-tbl th,.pf-tbl td{padding:8px 8px}
-input[type=text].pf-in{width:104px}
-input[type=text].pf-in.pf-q{width:48px}
-.pf-in{width:104px;text-align:right;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-variant-numeric:tabular-nums}
-.pf-in:focus{outline:2px solid var(--accent);outline-offset:-1px}
+#xImp{display:none;width:100%;min-height:120px;margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+
+/* hitung profit */
+.pf-top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.pf-title{font-size:13px}
+.pf-title b{font-size:16px;margin-right:6px}
+.pf-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--gray-bg);padding:3px;border-radius:10px}
+.seg-b{border:0;background:none;padding:5px 11px;border-radius:8px;cursor:pointer;color:var(--muted);font-size:13px}
+.seg-b:hover{color:var(--text)}
+.seg-b.on{background:var(--card);color:var(--accent);font-weight:600;box-shadow:0 1px 3px rgba(20,30,60,.15)}
+.sw2{position:relative;display:inline-flex;align-items:center;gap:8px;margin:0;font-size:13px;color:var(--text);cursor:pointer}
+.sw2 input{position:absolute;opacity:0;pointer-events:none}
+.sw2 .track{width:36px;height:20px;border-radius:10px;background:var(--line);position:relative;transition:.15s;flex:none}
+.sw2 .track::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sw2 input:checked+.track{background:var(--accent)}
+.sw2 input:checked+.track::after{left:18px}
+.sw2 input:focus-visible+.track{outline:2px solid var(--accent);outline-offset:2px}
+.pf-rules{padding:10px 14px;margin-bottom:10px}
+.pf-rules summary{display:flex;gap:8px;align-items:center;font-weight:500;font-size:13px}
+.pf-rules .cnt{background:var(--accent-soft);color:var(--accent);border-radius:10px;padding:0 8px;font-size:12px;font-weight:600}
+.pf-bulk{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px}
 .pf-warn{color:var(--warn);font-size:12.5px;margin:0 0 8px;min-height:1em}
-.pf-bulk{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}
-.pf-bulk input{width:150px}
-.pos{color:var(--ok);font-weight:600}
+.pf-tbl>tbody>tr>td:first-child,.pf-tbl>thead>tr>th:first-child{min-width:230px;max-width:320px}
+.pf-tbl>thead>tr>th,.pf-tbl>tbody>tr>td{padding:8px 8px}
+.pf-tbl th{cursor:default}
+.pf-tbl td.nm{font-weight:500}
+.acts{display:flex;gap:4px;margin-top:5px}
+.pf-in{width:104px;text-align:right;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-variant-numeric:tabular-nums}
+input[type=text].pf-in{width:104px}
+input[type=text].pf-in.pf-q{width:46px}
+input[type=text].pf-in.w{width:100%;text-align:left}
+.pf-in:focus{outline:2px solid var(--accent);outline-offset:-1px}
 .pf-total td{font-weight:700;background:var(--teal-soft)}
-.pf-grand{margin-top:12px;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--card);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
-.pf-grand strong{font-size:22px}
+.pf-grand{margin-top:12px;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--card);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+.pf-grand strong{font-size:26px;letter-spacing:-.01em}
+.pf-ids>td{background:var(--bg)}
+.pf-ids .tablewrap{border-radius:10px}
+
+@media (max-width:860px){
+  .drops,.f-row,.grid2{grid-template-columns:1fr}
+  .cards{grid-template-columns:1fr 1fr}
+  .rp-cals{grid-template-columns:1fr!important}
+  .rp-cal{width:auto!important}
+  .rp-cal+.rp-cal{border-left:0!important;border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
+  .tabs{overflow-x:auto;max-width:100%}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Rekap Pesanan &amp; Pencairan</h1>
-  <p class="sub">Seret kedua file Excel ke sini (file <b>income</b> dan file <b>Semua pesanan</b>). Data digabung otomatis lewat Order ID. Semua diproses di browser kamu, tidak ada yang diupload ke server.</p>
+  <p class="sub">Upload file <b>Income</b> dan <b>Semua pesanan</b> (klik atau seret ke kotak di bawah). Data digabung otomatis lewat Order ID dan diproses di browser kamu, tidak ada yang dikirim ke server.</p>
 
   <div class="drops">
     <div class="drop" id="dropIncome" data-kind="income">
-      <b>1. File Income</b><small>berisi Order ID &amp; Jumlah penyelesaian pembayaran</small>
-      <div class="fname" id="nameIncome"></div>
+      <span class="drop-ic"><i data-ic="upload"></i></span>
+      <div><b>1. File Income</b><small>Order ID &amp; jumlah penyelesaian pembayaran</small><div class="fname" id="nameIncome"></div></div>
     </div>
     <div class="drop" id="dropOrders" data-kind="orders">
-      <b>2. File Semua Pesanan</b><small>berisi Order ID, Product Name &amp; status</small>
-      <div class="fname" id="nameOrders"></div>
+      <span class="drop-ic"><i data-ic="upload"></i></span>
+      <div><b>2. File Semua Pesanan</b><small>Order ID, nama produk &amp; status</small><div class="fname" id="nameOrders"></div></div>
     </div>
   </div>
   <input type="file" id="picker" accept=".xlsx,.xls,.csv" multiple hidden>
@@ -196,22 +277,27 @@ input[type=text].pf-in.pf-q{width:48px}
 
   <div id="app">
     <div class="cards">
-      <div class="stat"><span>Jumlah baris tampil</span><strong id="cCount">0</strong></div>
-      <div class="stat"><span>Pesanan selesai (uang positif)</span><strong id="cDone">0</strong></div>
-      <div class="stat"><span>Uang cair (masuk rekening)</span><strong id="cGross">Rp0</strong></div>
-      <div class="stat tdkc"><span>Potongan negatif (tidak masuk uang cair)</span><strong id="cNeg">Rp0</strong></div>
-      <div class="stat netc"><span>Uang bersih (setelah potongan)</span><strong id="cNet">Rp0</strong></div>
-      <div class="stat estc"><span>Estimasi, belum cair (Dikirim)</span><strong id="cEst">Rp0</strong></div>
-      <div class="stat"><span>Status lain tapi uang positif (sudah termasuk uang cair)</span><strong id="cTdk">Rp0</strong></div>
-      <div class="stat"><span>Penggantian dana platform (sudah termasuk uang cair)</span><strong id="cAdj">Rp0</strong></div>
+      <div class="stat"><span>Uang cair <i class="tipi" data-tip="Uang yang sudah masuk rekening (nominal positif)."><i data-ic="info"></i></i></span><strong id="cGross">Rp0</strong></div>
+      <div class="stat tdkc"><span>Potongan <i class="tipi" data-tip="Nominal negatif. Tidak masuk uang cair, tapi mengurangi uang bersih."><i data-ic="info"></i></i></span><strong id="cNeg">Rp0</strong></div>
+      <div class="stat netc"><span>Uang bersih <i class="tipi" data-tip="Uang cair dikurangi potongan."><i data-ic="info"></i></i></span><strong id="cNet">Rp0</strong></div>
+      <div class="stat estc"><span>Cair, status masih Dikirim <i class="tipi" data-tip="Pesanan berstatus Dikirim yang uangnya sudah positif. Sudah termasuk di uang cair dan saldo."><i data-ic="info"></i></i></span><strong id="cEst">Rp0</strong></div>
     </div>
+    <details class="more">
+      <summary><i data-ic="chevron"></i> Rincian lainnya</summary>
+      <div class="cards small">
+        <div class="stat"><span>Jumlah baris tampil</span><strong id="cCount">0</strong></div>
+        <div class="stat"><span>Pesanan selesai (uang positif)</span><strong id="cDone">0</strong></div>
+        <div class="stat"><span>Status lain tapi uang positif <i class="tipi" data-tip="Pesanan berstatus Cancel/Return dll yang uangnya positif. Sudah termasuk di uang cair."><i data-ic="info"></i></i></span><strong id="cTdk">Rp0</strong></div>
+        <div class="stat"><span>Penggantian dana platform <i class="tipi" data-tip="Sudah termasuk di uang cair."><i data-ic="info"></i></i></span><strong id="cAdj">Rp0</strong></div>
+      </div>
+    </details>
 
     <div class="panel">
-      <div class="filters">
-        <div><label>Cari (Order ID atau nama produk)</label><input type="text" id="fSearch" placeholder="Ketik di sini…"></div>
+      <div class="f-row">
+        <div><label>Cari</label><input type="text" id="fSearch" placeholder="Order ID atau nama produk…"></div>
         <div class="msel" id="prodBox">
-          <label>Produk (centang yang mau ditampilkan)</label>
-          <button type="button" class="msel-btn" id="prodBtn"><span id="prodBtnText">Semua produk</span><span>▾</span></button>
+          <label>Produk</label>
+          <button type="button" class="msel-btn" id="prodBtn"><span id="prodBtnText">Semua produk</span><span><i data-ic="chevron"></i></span></button>
           <div class="msel-pop" id="prodPop">
             <input type="text" id="prodSearch" placeholder="Cari nama produk…">
             <div class="msel-actions">
@@ -221,43 +307,47 @@ input[type=text].pf-in.pf-q{width:48px}
             <div class="msel-list" id="prodList"></div>
           </div>
         </div>
-        <div><label>Status pesanan</label><div class="chips" id="chips"></div></div>
-      </div>
-      <div class="dates">
         <div id="rpPay"><label>Tanggal pembayaran</label></div>
-        <div id="rpOrd"><label>Tanggal pembuatan pesanan</label></div>
+        <div id="rpOrd"><label>Tanggal pembuatan</label></div>
       </div>
-      <div class="checks">
-        <label><input type="checkbox" id="fPaidOnly"> Hanya yang ada nominalnya (cair atau potongan)</label>
-        <label><input type="checkbox" id="fIncludeUnpaid"> Sertakan pesanan yang belum ada di file income</label>
-        <label><input type="checkbox" id="fShowExcl"> Tampilkan juga produk yang dikecualikan</label>
-        <span id="exclInfo" style="color:var(--muted);font-size:12.5px"></span>
-        <button class="btn" id="btnExcl">Atur produk dikecualikan</button>
-        <button class="btn" id="btnReset" style="margin-left:auto">Reset filter</button>
+      <div class="f-row2">
+        <div class="chips" id="chips"></div>
+        <span class="sp"></span>
+        <span id="exclInfo" class="muted" style="font-size:12px"></span>
+        <details class="pop">
+          <summary class="ib" data-tip="Opsi filter lainnya"><i data-ic="sliders"></i></summary>
+          <div class="pop-body">
+            <label class="ck"><input type="checkbox" id="fPaidOnly"> Hanya yang ada nominalnya (cair atau potongan)</label>
+            <label class="ck"><input type="checkbox" id="fIncludeUnpaid"> Sertakan pesanan yang belum ada di file income</label>
+            <label class="ck"><input type="checkbox" id="fShowExcl"> Tampilkan juga produk yang dikecualikan</label>
+          </div>
+        </details>
+        <button class="ib" id="btnExcl" data-tip="Atur produk yang dikecualikan (disembunyikan dari semua tabel)"><i data-ic="eyeoff"></i></button>
+        <button class="ib" id="btnReset" data-tip="Reset semua filter"><i data-ic="reset"></i></button>
       </div>
     </div>
 
     <div class="bar">
       <div class="tabs">
-        <button class="tab on" data-tab="detail">Detail pesanan</button>
-        <button class="tab" data-tab="produk">Rekap per produk</button>
-        <button class="tab" data-tab="tanggal">Rekap per tanggal bayar</button>
-        <button class="tab" data-tab="laporan">Laporan keuangan</button>
-        <button class="tab" data-tab="profit">Hitung profit</button>
+        <button class="tab on" data-tab="detail" data-tip="Daftar semua pesanan">Pesanan</button>
+        <button class="tab" data-tab="produk" data-tip="Rekap uang cair per produk">Per produk</button>
+        <button class="tab" data-tab="tanggal" data-tip="Rekap uang cair per tanggal pembayaran">Per tanggal</button>
+        <button class="tab" data-tab="laporan" data-tip="Laporan keuangan: uang cair, potongan, uang bersih">Laporan</button>
+        <button class="tab" data-tab="saldo" data-tip="Saldo: uang cair dikurangi pengembalian dan transfer">Saldo</button>
+        <button class="tab" data-tab="profit" data-tip="Hitung profit per kelompok barang">Profit</button>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn" id="btnExcel">Unduh Excel</button>
-      </div>
+      <button class="ib primary" id="btnExcel" data-tip="Unduh semua tabel sebagai file Excel"><i data-ic="download"></i> Excel</button>
     </div>
 
     <div class="tablewrap"><table id="tbl"></table></div>
     <div class="pager" id="pager"></div>
     <div id="report" style="display:none"></div>
     <div id="profit" style="display:none"></div>
+    <div id="saldo" style="display:none"></div>
 
     <div class="panel" style="margin-top:16px">
       <details>
-        <summary>Kirim ke Google Spreadsheet</summary>
+        <summary><i data-ic="send"></i> Kirim ke Google Spreadsheet</summary>
         <div class="grid2">
           <div><label>URL Web App Google Apps Script</label><input type="url" id="gsUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
           <div><label>Token (kalau kamu isi di Code.gs)</label><input type="password" id="gsToken" placeholder="opsional"></div>
@@ -271,7 +361,7 @@ input[type=text].pf-in.pf-q{width:48px}
 
 <div class="modal-ov" id="xOv">
   <div class="modal" role="dialog" aria-modal="true" aria-label="Produk dikecualikan">
-    <div class="modal-h"><div><b>Produk dikecualikan</b><span id="xCnt"></span></div><button class="btn" id="xClose">Selesai</button></div>
+    <div class="modal-h"><div><b>Produk dikecualikan</b><span id="xCnt"></span></div><button class="ib primary" id="xClose" data-tip="Selesai dan tutup"><i data-ic="check"></i> Selesai</button></div>
     <div class="modal-b">
       <div class="xnote">Nyalakan saklar pada produk yang <b>tidak mau dibaca</b>. Pesanan produk itu disembunyikan dari semua tabel dan hitungan. Pesanan berisi beberapa produk baru disembunyikan kalau <b>semua</b> produknya dikecualikan. Pilihan tersimpan di browser ini.</div>
       <input type="text" id="xSearch" placeholder="Cari nama produk…">
@@ -280,9 +370,9 @@ input[type=text].pf-in.pf-q{width:48px}
     </div>
     <div class="modal-f">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" id="xCopy">Salin daftar</button>
-        <button class="btn" id="xImport">Impor daftar</button>
-        <button class="btn" id="xDefault">Kembalikan daftar awal</button>
+        <button class="ib" id="xCopy" data-tip="Salin daftar produk dikecualikan"><i data-ic="copy"></i></button>
+        <button class="ib" id="xImport" data-tip="Impor daftar dari teks (menggantikan daftar sekarang)"><i data-ic="upload"></i></button>
+        <button class="ib" id="xDefault" data-tip="Kembalikan ke daftar awal"><i data-ic="reset"></i></button>
       </div>
       <span id="xMsg" style="color:var(--muted);font-size:12.5px"></span>
     </div>
@@ -343,7 +433,7 @@ const $=id=>document.getElementById(id);
 const rp=n=>{n=Math.round(n||0);return (n<0?'-':'')+'Rp'+new Intl.NumberFormat('id-ID').format(Math.abs(n))};
 /* ATURAN UANG (ditentukan di fungsi classify)
    - Nominal POSITIF  = dianggap pesanan Selesai & uang cair, apa pun status di file pesanan
-                        (kecuali status Dikirim = masih ESTIMASI, belum cair)
+                        (termasuk status Dikirim: begitu uangnya muncul positif, dianggap sudah cair & masuk saldo)
    - Nominal NEGATIF  = potongan, TIDAK masuk uang cair; statusnya dicek dan ditulis di Keterangan
    - Uang bersih      = uang cair (positif) + potongan (negatif) */
 const isEst=r=>r.kel==='est';
@@ -354,6 +444,48 @@ const estOf=r=>r.kel==='est'?r.bayar:0;
 const tdkOf=r=>r.konv?r.bayar:0;       // status lain (Cancel/Return dll) tapi uang positif: ikut dihitung
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const tick=()=>new Promise(r=>setTimeout(r,30));
+
+/* ---------- ikon, tooltip, toast ---------- */
+const IC={
+ upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+ download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+ list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+ copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+ clipboard:'<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>',
+ reset:'<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
+ sliders:'<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
+ eyeoff:'<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
+ calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+ info:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+ save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+ folder:'<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+ pencil:'<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+ plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+ x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+ check:'<polyline points="20 6 9 17 4 12"/>',
+ chevron:'<polyline points="6 9 12 15 18 9"/>',
+ left:'<polyline points="15 18 9 12 15 6"/>',
+ right:'<polyline points="9 18 15 12 9 6"/>',
+ send:'<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>'
+};
+const ic=n=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||''}</svg>`;
+document.querySelectorAll('i[data-ic]').forEach(el=>{el.outerHTML=ic(el.dataset.ic)});
+/* tooltip (keterangan saat kursor diarahkan ke tombol/ikon yang punya data-tip) */
+const tipEl=document.createElement('div');tipEl.id='tip';document.body.appendChild(tipEl);
+const hideTip=()=>{tipEl.style.display='none'};
+document.addEventListener('mouseover',e=>{
+  const el=e.target.closest?e.target.closest('[data-tip]'):null;
+  if(!el){hideTip();return}
+  tipEl.textContent=el.getAttribute('data-tip');tipEl.style.display='block';
+  const r=el.getBoundingClientRect(),w=tipEl.offsetWidth,h=tipEl.offsetHeight;
+  const x=Math.max(8,Math.min(r.left+r.width/2-w/2,innerWidth-w-8));let y=r.top-h-8;if(y<8)y=r.bottom+8;
+  tipEl.style.left=x+'px';tipEl.style.top=y+'px';
+});
+document.addEventListener('mousedown',hideTip);
+window.addEventListener('scroll',hideTip,true);
+const toastEl=document.createElement('div');toastEl.id='toast';document.body.appendChild(toastEl);
+let toastT;function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove('show'),1900)}
+document.addEventListener('click',e=>{document.querySelectorAll('details.pop[open]').forEach(d=>{if(!d.contains(e.target))d.open=false})});
 
 /* ---------- notifikasi ---------- */
 function notice(msg,isErr){const n=$('notice');if(!msg){n.style.display='none';return}n.textContent=msg;n.className='notice'+(isErr?' err':'');n.style.display='block'}
@@ -457,11 +589,11 @@ function parseOrders(rows,h){
 
 /* ---------- gabung data ---------- */
 function classify(r,isOrder){
-  r.statusAsli=r.status;r.ket='';r.kel='nol';r.konv=false;
-  if(r.status==='Dikirim'){r.kel='est';r.ket='Estimasi, belum cair (pesanan masih Dikirim)';return r}
+  r.statusAsli=r.status;r.ket='';r.kel='nol';r.konv=false;r.kirim=false;
   if(r.bayar>0){
     r.kel='cair';
-    if(isOrder&&r.status!=='Selesai'){r.konv=true;r.ket=(r.status==='Cancel'?'Status di file pesanan: Cancel. Pembeli mengajukan pembatalan tapi ditolak penjual, pesanan tetap dikirim sampai selesai dan uang cair':'Status di file pesanan: '+r.status+', tapi uang positif, jadi dihitung selesai dan cair');r.status='Selesai'}
+    if(isOrder&&r.status==='Dikirim'){r.kirim=true;r.ket='Sudah cair walau status masih Dikirim (uang positif = sudah masuk saldo)'}
+    else if(isOrder&&r.status!=='Selesai'){r.konv=true;r.ket=(r.status==='Cancel'?'Status di file pesanan: Cancel. Pembeli mengajukan pembatalan tapi ditolak penjual, pesanan tetap dikirim sampai selesai dan uang cair':'Status di file pesanan: '+r.status+', tapi uang positif, jadi dihitung selesai dan cair');r.status='Selesai'}
     return r;
   }
   if(r.bayar<0){
@@ -498,6 +630,7 @@ function rebuild(){
       rows.push(classify({id,produk:o.produk,status:o.status,bayar:0,tglBuat:o.tglBuat,tglBayar:'',inIncome:false,bases:o.bases,parts:o.parts},true));
     }
   }
+  if(inc)lgReady.then(()=>lgIngest(rows));
   const showEx=$('fShowExcl').checked;
   const kept=showEx?rows:rows.filter(r=>!(r.bases.length&&r.bases.every(x=>exclMap.has(normName(x)))));
   const hidden=rows.length-kept.length;
@@ -561,17 +694,19 @@ function render(){
   $('cGross').textContent=rp(gross);
   $('cNeg').textContent=rp(neg);
   $('cNet').textContent=rp(gross+neg);
-  $('cEst').textContent=rp(f.reduce((a,r)=>a+estOf(r),0));
+  $('cEst').textContent=rp(f.reduce((a,r)=>a+(r.kirim?r.bayar:0),0));
   $('cTdk').textContent=rp(f.reduce((a,r)=>a+tdkOf(r),0));
   $('cAdj').textContent=rp(f.reduce((a,r)=>a+(r.adj&&r.kel!=='est'?r.bayar:0),0));
-  const rep=state.tab==='laporan',pro=state.tab==='profit';
+  const rep=state.tab==='laporan',pro=state.tab==='profit',sal=state.tab==='saldo';
   $('report').style.display=rep?'block':'none';
   $('profit').style.display=pro?'block':'none';
-  document.querySelector('.tablewrap').style.display=(rep||pro)?'none':'';
+  $('saldo').style.display=sal?'block':'none';
+  document.querySelector('.tablewrap').style.display=(rep||pro||sal)?'none':'';
   if(state.tab==='detail')renderDetail();
   else if(state.tab==='produk')renderGroup('produk');
   else if(rep)renderReport();
   else if(pro)renderProfit();
+  else if(sal){lgRender();$('pager').innerHTML=''}
   else renderGroup('tanggal');
 }
 function renderDetail(){
@@ -579,9 +714,9 @@ function renderDetail(){
   const pages=Math.max(1,Math.ceil(f.length/state.perPage));
   if(state.page>pages)state.page=pages;
   const slice=f.slice((state.page-1)*state.perPage,state.page*state.perPage);
-  const cols=[['id','Order ID'],['produk','Nama Produk'],['status','Pesanan Selesai?'],['bayar','Jumlah Penyelesaian Pembayaran','num'],['tglBuat','Tanggal Pembuatan Pesanan'],['tglBayar','Tanggal Pembayaran'],['ket','Keterangan']];
+  const cols=[['id','Order ID','','Nomor pesanan'],['produk','Nama Produk','','Nama barang di pesanan'],['status','Status','','Status pesanan. Selesai = pesanan selesai dan uangnya positif.'],['bayar','Pembayaran','num','Jumlah penyelesaian pembayaran (uang cair)'],['tglBuat','Tgl dibuat','','Tanggal pembuatan pesanan'],['tglBayar','Tgl bayar','','Tanggal pembayaran'],['ket','Keterangan','','Catatan otomatis tentang status dan uang']];
   const arrow=k=>state.sortKey===k?(state.sortDir>0?' ▲':' ▼'):'';
-  let h='<thead><tr>'+cols.map(([k,t,c])=>`<th data-k="${k}" class="${c||''}">${t}${arrow(k)}</th>`).join('')+'</tr></thead><tbody>';
+  let h='<thead><tr>'+cols.map(([k,t,c,tp])=>`<th data-k="${k}" class="${c||''}" data-tip="${esc(tp||t)} (klik untuk mengurutkan)">${t}${arrow(k)}</th>`).join('')+'</tr></thead><tbody>';
   if(!slice.length)h+=`<tr><td colspan="7" class="empty">Tidak ada data yang cocok dengan filter.</td></tr>`;
   for(const r of slice){
     let amt,dt=showDate(r.tglBayar)||'<span class="zero">belum</span>';
@@ -591,7 +726,7 @@ function renderDetail(){
     h+=`<tr><td class="id">${esc(r.id)}</td><td>${esc(r.produk)}</td><td><span class="badge ${statusClass(r.status)}">${esc(r.status)}</span></td>${amt}<td>${showDate(r.tglBuat)}</td><td>${dt}</td><td class="${r.kel==='neg'?'neg':r.kel==='est'?'est':''}" style="font-size:12.5px;font-weight:400;min-width:200px">${esc(r.ket)}</td></tr>`;
   }
   $('tbl').innerHTML=h+'</tbody>';
-  $('pager').innerHTML=pages>1?`<button class="btn" id="pPrev" ${state.page<=1?'disabled':''}>‹ Sebelumnya</button><span>Halaman ${state.page} dari ${pages}</span><button class="btn" id="pNext" ${state.page>=pages?'disabled':''}>Berikutnya ›</button>`:'';
+  $('pager').innerHTML=pages>1?`<button class="ib" id="pPrev" data-tip="Halaman sebelumnya" ${state.page<=1?'disabled':''}>${ic('left')}</button><span>Halaman ${state.page} dari ${pages}</span><button class="ib" id="pNext" data-tip="Halaman berikutnya" ${state.page>=pages?'disabled':''}>${ic('right')}</button>`:'';
 }
 function groupData(kind){
   const m=new Map();
@@ -627,10 +762,11 @@ function periodText(){
   return (f||t)?('Tanggal pembayaran '+(f?showDate(f):'…')+' sampai '+(t?showDate(t):'…')):'Semua tanggal pembayaran';
 }
 function reportData(){
-  const R={gross:0,neg:0,est:0,konv:0,adj:0,nAdj:0,nSelesai:0,nEst:0,nKonv:0,negRows:[],konvRows:[],adjRows:[]};
+  const R={kirim:0,nKirim:0,gross:0,neg:0,est:0,konv:0,adj:0,nAdj:0,nSelesai:0,nEst:0,nKonv:0,negRows:[],konvRows:[],adjRows:[]};
   for(const r of (state.base||[])){
     if(r.kel==='est'){R.est+=r.bayar;R.nEst++;continue}
     if(r.status==='Selesai')R.nSelesai++;
+    if(r.kirim){R.kirim+=r.bayar;R.nKirim++}
     if(r.kel==='cair')R.gross+=r.bayar;
     if(r.kel==='neg'){R.neg+=r.bayar;R.negRows.push(r)}
     if(r.konv){R.konv+=r.bayar;R.nKonv++;R.konvRows.push(r)}
@@ -664,7 +800,7 @@ function renderReport(){
     row('UANG BERSIH','',rp(R.net),'total')+
     row('Info: sudah termasuk di uang cair, pesanan berstatus lain (Cancel/Return dll) tapi uang positif',R.nKonv+' order',rp(R.konv),'info')+
     row('Info: sudah termasuk di uang cair, penggantian dana oleh platform',R.nAdj+' transaksi',rp(R.adj),'info')+
-    row('Info, tidak dihitung: estimasi pesanan Dikirim (belum cair)',R.nEst+' order',rp(R.est),'info')+
+    row('Info: sudah termasuk di uang cair, status pesanan masih Dikirim',R.nKirim+' order',rp(R.kirim),'info')+
     `</tbody></table></div>`;
   h+=`<h3 class="rh">Rincian potongan negatif (tidak masuk uang cair, mengurangi uang bersih)</h3>`;
   h+=R.negRows.length?listTable(R.negRows):`<div class="rnote">Tidak ada nominal negatif pada data ini.</div>`;
@@ -737,12 +873,13 @@ function profitGroups(){
   else arr.sort(byNm);
   return arr;
 }
+const idTip=(open,n)=>open?'Sembunyikan daftar order':'Lihat '+n+' order ID beserta uang cairnya';
 function idsRow(g){
   const rows=g.rows.slice().sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
   const i=(state.pfGroups||[]).indexOf(g);
   const body=rows.map(r=>`<tr><td class="id">${esc(r.id)}</td><td class="num">${rp(r.bayar)}</td><td class="num">${r.ong?rp(r.ong):'-'}</td><td class="num">${r.aff?rp(r.aff):'-'}</td><td>${showDate(r.tb)||'-'}</td><td>${showDate(r.tp)||'-'}</td></tr>`).join('');
   const th=(t,c)=>`<th class="${c||''}" style="cursor:default">${t}</th>`;
-  return `<tr class="pf-ids"><td colspan="9" style="background:var(--bg)"><div style="margin-bottom:8px"><b>${rows.length} order</b> pada kelompok "${esc(g.label)}" &nbsp; <button type="button" class="btn" data-act="copyids" data-m="all" data-i="${i}">Salin ID + uang cair</button> <button type="button" class="btn" data-act="copyids" data-m="id" data-i="${i}">Salin ID saja</button></div><div style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Uang cair','num')}${th('Ongkir','num')}${th('Komisi afiliasi','num')}${th('Tgl pembuatan')}${th('Tgl pembayaran')}</tr></thead><tbody>${body}</tbody></table></div></td></tr>`;
+  return `<tr class="pf-ids"><td colspan="9"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><b>${rows.length} order</b><span class="muted">pada kelompok ini</span><span style="flex:1"></span><button type="button" class="ib" data-act="copyids" data-m="all" data-i="${i}" data-tip="Salin ID + uang cair + tanggal bayar (siap ditempel ke Excel)">${ic('clipboard')} ID + uang cair</button><button type="button" class="ib" data-act="copyids" data-m="id" data-i="${i}" data-tip="Salin order ID saja, satu per baris">${ic('copy')} ID saja</button></div><div class="tablewrap" style="max-height:320px;overflow:auto"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Uang cair','num')}${th('Ongkir','num')}${th('Komisi afiliasi','num')}${th('Tgl dibuat')}${th('Tgl bayar')}</tr></thead><tbody>${body}</tbody></table></div></td></tr>`;
 }
 function pfCalc(g){
   const s=pfStore[g.key]||{},q=parseNum(s.q)||1,mo=parseNum(s.m)*q,op=parseNum(s.o)*q,ki=parseNum(s.k);   // modal & operasional ikut dikali qty, komisi investor tidak
@@ -772,36 +909,37 @@ function renderProfit(){
     else if(r.kel==='est'){nEst++;vEst+=r.bayar}
     else if(r.kel==='cair'&&r.adj){nAdj++;vAdj+=r.bayar}
   }
-  let h=`<div class="rnote">${esc(periodText())}. Mengikuti filter pencarian, produk, dan tanggal (mengabaikan chip status). Modal, biaya operasional, dan komisi investor diisi <b>per paket</b>. Kolom <b>×</b> di samping modal untuk pembelian qty lebih dari 1: <b>modal dan biaya operasional</b> otomatis dikali, komisi investor tidak dikali. Tersimpan otomatis di browser ini. Tombol salin menyalin modal, operasional, dan komisi, angka × tidak ikut disalin.</div>`;
-  h+=`<div class="checks" style="margin:0 0 10px"><label><input type="checkbox" id="pfShip" ${pfIgnoreShip?'checked':''}> Abaikan selisih ongkir &amp; komisi afiliasi saat mengelompokkan (total uang cair tetap memakai angka asli, tidak diubah)</label></div>`;
+  const help='Order dikelompokkan kalau nama barang dan uang cairnya sama. Isi modal, biaya operasional, dan komisi investor per paket. Kotak kecil ✕ di samping modal untuk qty: modal dan operasional dikali qty, komisi tidak dikali. Mengikuti filter pencarian, produk, dan tanggal (mengabaikan chip status). Isian tersimpan otomatis di browser ini.';
+  const sb=(k,t,tip)=>`<button type="button" class="seg-b ${pfSort===k?'on':''}" data-pfsort="${k}" data-tip="${tip}">${t}</button>`;
+  let h=`<div class="pf-top"><div class="pf-title"><b>Hitung profit</b><span class="muted">${esc(periodText())}</span> <i class="tipi" data-tip="${esc(help)}">${ic('info')}</i></div><div class="pf-tools">`+
+    `<div class="seg">${sb('desc','Terbanyak','Urutkan dari total uang cair terbesar')}${sb('asc','Terendah','Urutkan dari total uang cair terkecil')}${sb('nama','A–Z','Urutkan berdasarkan nama')}</div>`+
+    `<label class="sw2" data-tip="Abaikan selisih ongkir dan komisi afiliasi saat mengelompokkan. Total uang cair tetap angka asli."><input type="checkbox" id="pfShip" ${pfIgnoreShip?'checked':''}><span class="track"></span><span>Abaikan ongkir</span></label>`+
+    `<details class="pop"><summary class="ib" data-tip="Isi biaya operasional / komisi investor yang sama untuk semua kelompok">${ic('pencil')}</summary><div class="pop-body"><label>Biaya operasional per paket</label><input type="text" id="pfOpsAll" class="pf-in w" inputmode="decimal" placeholder="mis. 1.500"><label>Komisi investor per paket</label><input type="text" id="pfKomAll" class="pf-in w" inputmode="decimal" placeholder="mis. 2.000"><button class="btn primary" id="pfApply" type="button">Terapkan ke semua</button></div></details>`+
+    `<button class="ib" id="pfBackup" type="button" data-tip="Simpan cadangan modal dan semua isian ke file">${ic('save')}</button><button class="ib" id="pfRestore" type="button" data-tip="Muat cadangan dari file">${ic('folder')}</button><input type="file" id="pfRestoreFile" accept=".json,application/json" style="display:none"></div></div>`;
   const prods=[...new Set((state.rows||[]).flatMap(r=>r.bases||[]))].sort();
-  h+=`<details id="pfRulesBox" class="panel" style="padding:10px 14px;margin-bottom:10px" ${pfRulesOpen?'open':''}><summary>Pisahkan produk berdasarkan tanggal pembuatan pesanan (${pfRules.length} aturan)</summary>`+
-    `<div class="rnote">Untuk produk yang isinya diganti tanpa ganti nama. Pesanan dibuat sebelum tanggal batas jadi satu kelompok, yang dibuat pada tanggal batas dan sesudahnya jadi kelompok lain.</div>`+
-    pfRules.map((r,i)=>`<div class="pf-bulk" style="margin-bottom:6px"><div style="flex:1;min-width:260px"><label>Nama produk (persis)</label><input type="text" list="pfProdList" data-ri="${i}" data-rf="name" value="${esc(r.name)}"></div><div><label>Tanggal batas</label><input type="date" data-ri="${i}" data-rf="date" value="${esc(r.date)}"></div><button type="button" class="btn" data-rdel="${i}">Hapus</button></div>`).join('')+
-    `<datalist id="pfProdList">${prods.map(x=>`<option value="${esc(x)}">`).join('')}</datalist><button type="button" class="btn" id="pfRuleAdd">+ Tambah aturan</button></details>`;
-  const sb=(k,t)=>`<button type="button" class="chip ${pfSort===k?'on':''}" data-pfsort="${k}">${t}</button>`;
-  h+=`<div class="chips" style="margin:0 0 10px"><span style="color:var(--muted);font-size:12.5px">Urutkan:</span>${sb('desc','Uang cair terbanyak')}${sb('asc','Uang cair terendah')}${sb('nama','Nama A–Z')}</div>`;
+  h+=`<details id="pfRulesBox" class="panel pf-rules" ${pfRulesOpen?'open':''}><summary data-tip="Untuk produk yang isinya diganti tanpa ganti nama. Pesanan dibuat sebelum tanggal batas jadi satu kelompok, yang dibuat pada tanggal batas dan sesudahnya jadi kelompok lain.">${ic('calendar')} Pisah produk berdasarkan tanggal pembuatan <span class="cnt">${pfRules.length}</span></summary><div style="margin-top:10px">`+
+    pfRules.map((r,i)=>`<div class="pf-bulk"><div style="flex:1;min-width:260px"><label>Nama produk (persis)</label><input type="text" list="pfProdList" data-ri="${i}" data-rf="name" value="${esc(r.name)}"></div><div><label>Tanggal batas</label><input type="date" data-ri="${i}" data-rf="date" value="${esc(r.date)}"></div><button type="button" class="ib" data-rdel="${i}" data-tip="Hapus aturan ini">${ic('x')}</button></div>`).join('')+
+    `<datalist id="pfProdList">${prods.map(x=>`<option value="${esc(x)}">`).join('')}</datalist><button type="button" class="btn" id="pfRuleAdd">${ic('plus')} Aturan baru</button></div></details>`;
   if(!gs.length){
     $('profit').innerHTML=h+'<div class="empty">Belum ada order dengan uang cair positif pada data ini. Pastikan file income dan file Semua pesanan sudah diupload.</div>';
     $('pager').innerHTML='';return;
   }
-  h+=`<div class="pf-bulk"><div><label>Isi biaya operasional yang sama untuk semua kelompok (per paket)</label><input type="text" id="pfOpsAll" class="pf-in" inputmode="decimal" placeholder="mis. 1.500" style="width:200px"></div><div><label>Isi komisi investor yang sama untuk semua kelompok (per paket)</label><input type="text" id="pfKomAll" class="pf-in" inputmode="decimal" placeholder="mis. 2.000" style="width:200px"></div><button class="btn" id="pfApply" type="button">Terapkan ke semua</button></div>`;
   h+=`<div class="pf-warn" id="pfMiss"></div>`;
-  const th=(t,c)=>`<th class="${c||''}" style="cursor:default">${t}</th>`;
-  h+=`<div class="tablewrap"><table class="pf-tbl" style="min-width:1100px"><thead><tr>${th('Nama kelompok')}${th('Jumlah order','num')}${th('Rata-rata uang cair per order','num')}${th('Total uang cair','num')}${th('Modal per paket × qty','num')}${th('Biaya operasional per paket (× qty)','num')}${th('Komisi investor per paket','num')}${th('Profit per paket (rata-rata)','num')}${th('Total profit','num')}</tr></thead><tbody>`;
+  const th=(t,tip,c)=>`<th class="${c||''}" data-tip="${esc(tip)}">${t}</th>`;
+  h+=`<div class="tablewrap"><table class="pf-tbl" style="min-width:1100px"><thead><tr>${th('Nama kelompok','Nama barang. Kalau satu barang punya beberapa nominal, diberi (1), (2), dst.')}${th('Order','Jumlah order dalam kelompok ini','num')}${th('Cair / order','Rata-rata uang cair per order. Di bawahnya: kisaran terendah sampai tertinggi.','num')}${th('Total cair','Total uang cair semua order di kelompok ini','num')}${th('Modal × qty','Modal per paket. Kotak kecil = qty (kali berapa); qty mengalikan modal dan operasional. Kosong = 1.','num')}${th('Operasional','Biaya operasional per paket (ikut dikali qty)','num')}${th('Komisi investor','Komisi investor per paket (tidak dikali qty)','num')}${th('Profit / paket','Rata-rata profit per paket = uang cair − modal×qty − operasional×qty − komisi','num')}${th('Total profit','Profit per paket × jumlah order','num')}</tr></thead><tbody>`;
   gs.forEach((g,i)=>{
     const s=pfStore[g.key]||{};
     const multi=g.label!==g.name;
     const rng=Math.round(g.min)!==Math.round(g.max)?`<br><small class="zero">${rp(g.min)} – ${rp(g.max)}</small>`:'';
-    h+=`<tr><td>${esc(g.label)}<br><button type="button" class="link" data-act="ids" data-i="${i}" style="font-size:12px">${pfOpen.has(g.key)?'▾ Sembunyikan':'▸ Lihat'} order ID (${g.n})</button>${multi?`<br><button type="button" class="link" data-act="copy" data-i="${i}" style="font-size:12px">↧ salin modal &amp; operasional ke semua nominal lain dari barang ini</button>`:''}</td><td class="num">${g.n}</td><td class="num">${rp(g.amt)}${rng}</td><td class="num">${rp(g.sum)}</td>`+
-      `<td class="num" style="white-space:nowrap"><input class="pf-in" type="text" inputmode="decimal" data-i="${i}" data-f="m" value="${esc(s.m||'')}" placeholder="0"> <span class="zero">×</span> <input class="pf-in pf-q" type="text" inputmode="numeric" data-i="${i}" data-f="q" value="${esc(s.q||'')}" placeholder="1" title="Kali berapa (qty), mengalikan modal dan biaya operasional. Kosong = 1"></td>`+
+    h+=`<tr><td class="nm">${esc(g.label)}<div class="acts"><button type="button" class="ib sm ${pfOpen.has(g.key)?'on':''}" data-act="ids" data-i="${i}" data-tip="${esc(idTip(pfOpen.has(g.key),g.n))}">${ic('list')}</button>${multi?`<button type="button" class="ib sm" data-act="copy" data-i="${i}" data-tip="Salin modal, operasional, dan komisi ke semua nominal lain dari barang ini (qty tidak ikut)">${ic('copy')}</button>`:''}</div></td><td class="num">${g.n}</td><td class="num">${rp(g.amt)}${rng}</td><td class="num">${rp(g.sum)}</td>`+
+      `<td class="num" style="white-space:nowrap"><input class="pf-in" type="text" inputmode="decimal" data-i="${i}" data-f="m" value="${esc(s.m||'')}" placeholder="0"> <span class="zero">×</span> <input class="pf-in pf-q" type="text" inputmode="numeric" data-i="${i}" data-f="q" value="${esc(s.q||'')}" placeholder="1"></td>`+
       `<td class="num"><input class="pf-in" type="text" inputmode="decimal" data-i="${i}" data-f="o" value="${esc(s.o||'')}" placeholder="0"></td>`+
       `<td class="num"><input class="pf-in" type="text" inputmode="decimal" data-i="${i}" data-f="k" value="${esc(s.k||'')}" placeholder="0"></td>`+
       `<td class="num" id="pfP${i}"></td><td class="num" id="pfT${i}"></td></tr>`+(pfOpen.has(g.key)?idsRow(g):'');
   });
-  h+=`<tr class="pf-total"><td>TOTAL</td><td class="num" id="pfTn"></td><td class="num"></td><td class="num" id="pfTc"></td><td class="num" id="pfTm" title="Total modal (modal × jumlah order)"></td><td class="num" id="pfTo" title="Total operasional (operasional × qty × jumlah order)"></td><td class="num" id="pfTk" title="Total komisi investor (komisi × jumlah order)"></td><td class="num"></td><td class="num" id="pfTp"></td></tr>`;
+  h+=`<tr class="pf-total"><td>TOTAL</td><td class="num" id="pfTn"></td><td class="num"></td><td class="num" id="pfTc"></td><td class="num" id="pfTm" data-tip="Total modal (modal × qty × jumlah order)"></td><td class="num" id="pfTo" data-tip="Total operasional (operasional × qty × jumlah order)"></td><td class="num" id="pfTk" data-tip="Total komisi investor (komisi × jumlah order)"></td><td class="num"></td><td class="num" id="pfTp"></td></tr>`;
   h+=`</tbody></table></div>`;
-  h+=`<div class="pf-grand"><span>TOTAL PROFIT SEMUA KELOMPOK<br><small style="color:var(--muted)">= total uang cair − total modal − total biaya operasional − total komisi investor</small></span><strong id="pfGrand"></strong></div>`;
+  h+=`<div class="pf-grand"><span>Total profit semua kelompok <i class="tipi" data-tip="Total uang cair − total modal − total biaya operasional − total komisi investor">${ic('info')}</i></span><strong id="pfGrand"></strong></div>`;
   const info=[];
   if(nNeg)info.push(`${nNeg} order potongan negatif (${rp(vNeg)}) tidak ikut dikelompokkan dan tidak mengurangi profit di sini`);
   if(nAdj)info.push(`${nAdj} penggantian dana platform (${rp(vAdj)}) tidak ikut dikelompokkan`);
@@ -830,6 +968,23 @@ $('profit').addEventListener('change',e=>{
   try{localStorage.setItem(PFOPT,pfIgnoreShip?'1':'0')}catch(x){}
   renderProfit();
 });
+$('profit').addEventListener('change',e=>{
+  if(e.target.id!=='pfRestoreFile')return;
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const d=JSON.parse(rd.result);
+      if(!d||d.app!=='rekap-profit'||!d.isian||typeof d.isian!=='object')throw new Error('format');
+      Object.assign(pfStore,d.isian);
+      if(Array.isArray(d.aturanTanggal))pfRules=d.aturanTanggal;
+      if(typeof d.abaikanOngkir==='boolean')pfIgnoreShip=d.abaikanOngkir;
+      pfSave();pfRulesSave();try{localStorage.setItem(PFOPT,pfIgnoreShip?'1':'0')}catch(x){}
+      renderProfit();toast('Cadangan dimuat: '+Object.keys(d.isian).length+' isian kelompok');
+    }catch(x){alert('File cadangan tidak valid.')}
+  };
+  rd.readAsText(f);e.target.value='';
+});
 $('profit').addEventListener('toggle',e=>{if(e.target.id==='pfRulesBox')pfRulesOpen=e.target.open},true);
 $('profit').addEventListener('change',e=>{
   const el=e.target.closest('[data-rf]');if(!el)return;
@@ -837,13 +992,20 @@ $('profit').addEventListener('change',e=>{
   r[el.dataset.rf]=el.value;pfRulesSave();renderProfit();
 });
 $('profit').addEventListener('click',e=>{
+  if(e.target.closest('#pfBackup')){
+    const data={app:'rekap-profit',versi:1,dibuat:new Date().toISOString(),isian:pfStore,aturanTanggal:pfRules,abaikanOngkir:pfIgnoreShip};
+    const blob=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cadangan-modal-profit.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    return;
+  }
+  if(e.target.closest('#pfRestore')){$('pfRestoreFile').click();return}
   const idb=e.target.closest('[data-act=ids]');
   if(idb){
     const g=(state.pfGroups||[])[+idb.dataset.i];if(!g)return;
     const tr=idb.closest('tr'),nx=tr.nextElementSibling;
     if(pfOpen.has(g.key)){pfOpen.delete(g.key);if(nx&&nx.classList.contains('pf-ids'))nx.remove()}
     else{pfOpen.add(g.key);tr.insertAdjacentHTML('afterend',idsRow(g))}
-    idb.textContent=(pfOpen.has(g.key)?'▾ Sembunyikan':'▸ Lihat')+' order ID ('+g.n+')';
+    idb.classList.toggle('on',pfOpen.has(g.key));idb.setAttribute('data-tip',idTip(pfOpen.has(g.key),g.n));hideTip();
     return;
   }
   const cid=e.target.closest('[data-act=copyids]');
@@ -851,12 +1013,12 @@ $('profit').addEventListener('click',e=>{
     const g=(state.pfGroups||[])[+cid.dataset.i];if(!g)return;
     const rows=g.rows.slice().sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
     const txt=rows.map(r=>cid.dataset.m==='id'?r.id:r.id+'\t'+Math.round(r.bayar)+'\t'+showDate(r.tp)).join('\n');
-    const done=()=>{cid.textContent='Tersalin ✓'};
-    const legacy=()=>{const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand('copy')}catch(x){}ta.remove();ok?done():(cid.textContent='Gagal menyalin')};
+    const done=()=>toast('Tersalin: '+rows.length+' order');
+    const legacy=()=>{const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand('copy')}catch(x){}ta.remove();ok?done():toast('Gagal menyalin, coba lagi')};
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,legacy);else legacy();
     return;
   }
-  if(e.target.id==='pfRuleAdd'){pfRules.push({name:'',date:''});pfRulesOpen=true;pfRulesSave();renderProfit();return}
+  if(e.target.closest('#pfRuleAdd')){pfRules.push({name:'',date:''});pfRulesOpen=true;pfRulesSave();renderProfit();return}
   const dl=e.target.closest('[data-rdel]');
   if(dl){pfRules.splice(+dl.dataset.rdel,1);pfRulesSave();renderProfit();return}
   const so=e.target.closest('[data-pfsort]');
@@ -872,7 +1034,7 @@ $('profit').addEventListener('click',e=>{
     });
     pfSave();updateProfit();return;
   }
-  if(e.target.id!=='pfApply')return;
+  if(!e.target.closest('#pfApply'))return;
   const v=$('pfOpsAll').value,k=$('pfKomAll').value;
   (state.pfGroups||[]).forEach(g=>{const t=pfStore[g.key]||(pfStore[g.key]={});if(v.trim())t.o=v;if(k.trim())t.k=k});
   pfSave();renderProfit();
@@ -896,7 +1058,7 @@ $('tbl').addEventListener('click',e=>{
   sortRows();render();
 });
 $('pager').addEventListener('click',e=>{
-  if(e.target.id==='pPrev')state.page--;else if(e.target.id==='pNext')state.page++;else return;
+  if(e.target.closest('#pPrev'))state.page--;else if(e.target.closest('#pNext'))state.page++;else return;
   render();window.scrollTo({top:$('tbl').offsetTop-80,behavior:'smooth'});
 });
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
@@ -1101,7 +1263,7 @@ $('xDefault').addEventListener('click',()=>{
 
 /* ---------- ekspor ---------- */
 const HEAD=['Order ID','Nama Produk','Pesanan Selesai','Jumlah Penyelesaian Pembayaran','Tanggal Pembuatan Pesanan','Tanggal Pembayaran','Keterangan Dana','Keterangan'];
-const danaNote=r=>r.kel==='est'?'Estimasi (belum cair)':r.kel==='neg'?'Potongan (tidak masuk uang cair)':r.bayar>0?'Sudah cair':'-';
+const danaNote=r=>r.kel==='est'?'Estimasi (belum cair)':r.kel==='neg'?'Potongan (tidak masuk uang cair)':r.bayar>0?(r.kirim?'Sudah cair (status masih Dikirim)':'Sudah cair'):'-';
 function detailAoa(){return [HEAD,...state.filtered.map(r=>[r.id,r.produk,r.status,r.bayar,r.tglBuat,r.tglBayar,danaNote(r),r.ket])]}
 function produkAoa(){return [['Nama Produk','Jumlah Pesanan','Pesanan Selesai','Uang Cair','Potongan (negatif)','Uang Bersih','Estimasi (belum cair)','Status lain, uang positif (sudah termasuk uang cair)'],...groupData('produk').map(g=>[g.key,g.n,g.done,g.gross,g.neg,g.sum,g.est,g.tdk])]}
 function reportAoa(){
@@ -1144,6 +1306,89 @@ $('btnExcel').addEventListener('click',()=>{
 
 /* ---------- kirim ke Google Sheets ---------- */
 try{$('gsUrl').value=localStorage.getItem('gsUrl')||'';$('gsToken').value=localStorage.getItem('gsToken')||''}catch(e){}
+/* ===== SALDO ===== */
+/* Buku saldo. Satu catatan = satu kejadian uang (Order ID + tanggal pembayaran) dengan nominalnya.
+   Upload ulang file yang sama tidak menggandakan apa pun. Nominal positif masuk saldo, nominal negatif (pengembalian) mengurangi saldo,
+   transfer yang kamu catat juga mengurangi saldo. Disimpan di browser dan disalin ke Google Spreadsheet lewat Apps Script. */
+const LGKEY='rekapLedger';
+const lg={ent:new Map(),tr:[],start:'',msg:'',last:null};
+try{const x=JSON.parse(localStorage.getItem(LGKEY)||'null');if(x){lg.ent=new Map(x.e.map(e=>[e.k,e]));lg.tr=x.t||[];lg.start=x.s||''}}catch(e){}
+const lgSave=()=>{try{localStorage.setItem(LGKEY,JSON.stringify({e:[...lg.ent.values()],t:lg.tr,s:lg.start}))}catch(e){}};
+const lgUrl=()=>($('gsUrl').value||'').trim();
+async function lgPost(body){
+  const u=lgUrl();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(u))throw new Error('URL Apps Script belum diisi (bagian "Kirim ke Google Spreadsheet" di bawah)');
+  const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({token:$('gsToken').value},body))});
+  const j=await r.json();if(!j.ok)throw new Error(j.error||'gagal');return j;
+}
+async function lgPush(list){
+  const rowOf=e=>[e.k,e.id,e.tgl,e.amt,e.p,e.st,JSON.stringify(e.b||[]),e.up];
+  for(let i=0;i<list.length;i+=2000)await lgPost({action:'ledger_upsert',rows:list.slice(i,i+2000).map(rowOf)});
+}
+const lgPushMeta=()=>lgPost({action:'meta_save',transfers:lg.tr,start:lg.start});
+async function lgLoadRemote(){
+  const j=await lgPost({action:'ledger_load'});
+  if(j.rows.length||j.transfers.length){
+    lg.ent=new Map(j.rows.map(r=>{const e={k:String(r[0]),id:String(r[1]),tgl:String(r[2]),amt:Number(r[3])||0,p:String(r[4]||''),st:String(r[5]||''),up:String(r[7]||'')};try{e.b=JSON.parse(r[6]||'[]')}catch(x){e.b=[]}return [e.k,e]}));
+    lg.tr=j.transfers.map(t=>({id:String(t[0]),tgl:String(t[1]),amt:Number(t[2])||0,ket:String(t[3]||'')}));
+    lg.start=String(j.start||'');lgSave();
+  }
+  lg.msg='Tersambung ke spreadsheet ('+lg.ent.size+' transaksi dimuat)';
+}
+const lgReady=(async()=>{try{if(lgUrl())await lgLoadRemote()}catch(e){lg.msg='Spreadsheet belum tersambung: '+e.message}})();
+async function lgIngest(rows){
+  const hasOrd=!!state.orders,changed=[];let nNew=0,nUpd=0;const up=isoOf(new Date());
+  for(const r of rows){
+    if(!r.inIncome||!r.bayar||!r.tglBayar)continue;
+    const k=r.id+'|'+r.tglBayar,e=lg.ent.get(k),st=r.statusAsli;
+    if(!e){const n={k,id:r.id,tgl:r.tglBayar,amt:r.bayar,p:r.produk,st,b:r.bases||[],up};lg.ent.set(k,n);changed.push(n);nNew++}
+    else if(e.amt!==r.bayar||(hasOrd&&e.st!==st)){if(e.amt!==r.bayar)nUpd++;e.amt=r.bayar;if(hasOrd){e.st=st;e.p=r.produk;e.b=r.bases||e.b}changed.push(e)}
+  }
+  lg.last={nNew,nUpd,at:new Date().toLocaleString('id-ID')};
+  if(changed.length){
+    lgSave();
+    if(lgUrl()){try{await lgPush(changed);lg.msg='Tersimpan ke spreadsheet ('+changed.length+' transaksi dikirim)'}catch(e){lg.msg='Gagal simpan ke spreadsheet: '+e.message}}
+    else lg.msg='Tersimpan di browser saja (URL Apps Script belum diisi)';
+    toast('Saldo: '+nNew+' transaksi baru'+(nUpd?', '+nUpd+' berubah':''));
+  }
+  if(state.tab==='saldo')lgRender();
+}
+function lgCalc(){
+  const sh=$('fShowExcl').checked,ex=e=>!sh&&e.b&&e.b.length&&e.b.every(x=>exclMap.has(normName(x)));
+  const ok=t=>!lg.start||t>=lg.start,days=new Map();
+  const g=t=>{let d=days.get(t);if(!d){d={t,in:0,neg:0,out:0,n:0};days.set(t,d)}return d};
+  let kirim=0,nk=0;
+  for(const e of lg.ent.values()){if(ex(e)||!ok(e.tgl))continue;const d=g(e.tgl);d.n++;if(e.amt>0){d.in+=e.amt;if(e.st==='Dikirim'){kirim+=e.amt;nk++}}else d.neg+=e.amt}
+  for(const t of lg.tr)if(ok(t.tgl))g(t.tgl).out+=t.amt;
+  const arr=[...days.values()].sort((a,b)=>a.t<b.t?-1:1);let run=0;
+  for(const d of arr){run+=d.in+d.neg-d.out;d.run=run}
+  const sum=k=>arr.reduce((a,d)=>a+d[k],0);
+  return {arr:arr.reverse(),in:sum('in'),neg:sum('neg'),out:sum('out'),saldo:run,kirim,nk};
+}
+function lgRender(){
+  const c=lgCalc(),N=new Intl.NumberFormat('id-ID').format;
+  let h=`<div class="cards"><div class="stat"><span>Uang masuk (sudah cair)</span><strong>${rp(c.in)}</strong></div><div class="stat tdkc"><span>Pengembalian / potongan</span><strong>${rp(c.neg)}</strong></div><div class="stat"><span>Sudah kamu transfer</span><strong>${rp(-c.out)}</strong></div><div class="stat netc"><span>SALDO (belum ditransfer)</span><strong>${rp(c.saldo)}</strong></div></div>`;
+  h+=`<div class="rnote">Uang masuk sudah termasuk ${rp(c.kirim)} dari ${c.nk} pesanan yang statusnya masih Dikirim. ${lg.last?'Upload terakhir: '+esc(lg.last.at)+' ('+lg.last.nNew+' transaksi baru, '+lg.last.nUpd+' berubah).':'Upload file income + Semua pesanan untuk menambah data.'}</div>`;
+  h+=`<div class="panel"><b>Catat transfer</b><div class="grid2" style="grid-template-columns:1fr 1fr 2fr auto auto"><div><label>Tanggal</label><input type="date" id="trT" value="${isoOf(new Date())}"></div><div><label>Nominal (Rp)</label><input type="text" id="trA" placeholder="${N(Math.max(0,Math.round(c.saldo)))}"></div><div><label>Catatan</label><input type="text" id="trN" placeholder="mis. transfer ke owner B"></div><button class="btn primary" data-act="addtr">Catat</button><button class="btn" data-act="fulltr" data-tip="Isi nominal sebesar seluruh saldo">Isi = saldo</button></div>`;
+  if(lg.tr.length)h+=`<div class="tablewrap" style="margin-top:10px"><table><thead><tr><th style="cursor:default">Tanggal</th><th class="num" style="cursor:default">Nominal</th><th style="cursor:default">Catatan</th><th></th></tr></thead><tbody>${lg.tr.map((t,i)=>({t,i})).sort((a,b)=>a.t.tgl<b.t.tgl?1:-1).map(({t,i})=>`<tr><td>${showDate(t.tgl)}</td><td class="num">${rp(t.amt)}</td><td>${esc(t.ket)}</td><td><button class="ib" data-act="deltr" data-i="${i}" data-tip="Hapus catatan ini">${ic('x')}</button></td></tr>`).join('')}</tbody></table></div>`;
+  h+=`</div><div class="panel"><div class="grid2" style="grid-template-columns:1fr auto auto"><div><label>Saldo mulai dihitung dari tanggal bayar (kosong = semua data)</label><input type="date" id="lgStart" value="${esc(lg.start)}"></div><button class="btn" data-act="pull">Muat dari spreadsheet</button><button class="btn" data-act="push">Simpan semua ke spreadsheet</button></div><div class="hint">${esc(lg.msg||'Belum tersambung ke spreadsheet.')} Transfer yang tanggalnya sebelum tanggal mulai tidak ikut dihitung.</div></div>`;
+  h+=`<div class="tablewrap"><table><thead><tr><th style="cursor:default">Tanggal bayar</th><th class="num" style="cursor:default">Transaksi</th><th class="num" style="cursor:default">Masuk</th><th class="num" style="cursor:default">Pengembalian</th><th class="num" style="cursor:default">Transfer</th><th class="num" style="cursor:default">Saldo berjalan</th></tr></thead><tbody>${c.arr.map(d=>`<tr><td>${showDate(d.t)}</td><td class="num">${d.n}</td><td class="num">${d.in?rp(d.in):'-'}</td><td class="num neg">${d.neg?rp(d.neg):'-'}</td><td class="num">${d.out?rp(-d.out):'-'}</td><td class="num"><b>${rp(d.run)}</b></td></tr>`).join('')||'<tr><td colspan="6" class="empty">Belum ada data. Upload file income dan Semua pesanan.</td></tr>'}</tbody></table></div>`;
+  $('saldo').innerHTML=h;
+}
+$('saldo').addEventListener('change',e=>{if(e.target.id==='lgStart'){lg.start=e.target.value;lgSave();lgRender();lgPushMeta().catch(()=>{})}});
+$('saldo').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
+  if(a==='fulltr'){$('trA').value=Math.max(0,Math.round(lgCalc().saldo))}
+  else if(a==='addtr'){
+    const t=$('trT').value,v=parseNum($('trA').value);if(!t||!(v>0)){toast('Isi tanggal dan nominal');return}
+    lg.tr.push({id:'T'+Date.now(),tgl:t,amt:v,ket:$('trN').value.trim()});lgSave();lgRender();
+    try{await lgPushMeta()}catch(x){lg.msg='Transfer tersimpan di browser, gagal ke spreadsheet: '+x.message;lgRender()}
+  }
+  else if(a==='deltr'){lg.tr.splice(+b.dataset.i,1);lgSave();lgRender();lgPushMeta().catch(()=>{})}
+  else if(a==='pull'){try{lg.msg='Memuat…';lgRender();await lgLoadRemote()}catch(x){lg.msg='Gagal memuat: '+x.message}lgRender()}
+  else if(a==='push'){try{lg.msg='Menyimpan…';lgRender();await lgPush([...lg.ent.values()]);await lgPushMeta();lg.msg='Semua data tersimpan ke spreadsheet ('+lg.ent.size+' transaksi)'}catch(x){lg.msg='Gagal menyimpan: '+x.message}lgRender()}
+});
+/* ===== END SALDO ===== */
+
 $('btnSend').addEventListener('click',async()=>{
   const url=$('gsUrl').value.trim(),token=$('gsToken').value;
   if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(url)){$('sendHint').textContent='URL belum benar. Harus berakhiran /exec (lihat panduan di README).';return}
