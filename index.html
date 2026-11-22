@@ -545,7 +545,7 @@ async function readOne(file){
     const ws=wb.Sheets[name];fixRef(ws);
     const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
     let h=findHeader(rows,r=>r.includes('ID Pesanan/Penyesuaian'));
-    if(h>=0){parseIncome(rows,h);lgReadFile(wb);setName('Income',file.name);return}
+    if(h>=0){parseIncome(rows,h);setName('Income',file.name);return}
     h=findHeader(rows,r=>r.includes('Order ID')&&r.includes('Product Name'));
     if(h>=0){parseOrders(rows,h);setName('Orders',file.name);return}
   }
@@ -1388,8 +1388,6 @@ function lgRender(){
   const c=lgCalc(),N=new Intl.NumberFormat('id-ID').format;
   let h=`<div class="cards"><div class="stat"><span>Uang masuk (sudah cair)</span><strong>${rp(c.in)}</strong></div><div class="stat tdkc"><span>Pengembalian / potongan</span><strong>${rp(c.neg)}</strong></div><div class="stat"><span>Sudah kamu transfer</span><strong>${rp(-c.out)}</strong></div><div class="stat netc"><span>SALDO owner ${viewOwner} (belum ditransfer)</span><strong>${rp(c.saldo)}</strong></div></div>`;
   if(c.unk.n)h+=`<div class="notice" style="display:block"><b>${c.unk.n} transaksi (${rp(c.unk.s)})</b> berasal dari produk yang belum kamu tentukan pemiliknya, sementara dihitung milik owner 2. <button class="btn" data-act="openprod">Atur produk</button></div>`;
-  const f=lg.file;
-  h+=`<div class="panel"><b>Cek dengan Seller Center</b><div class="hint">${f?'Menurut file income: Earnings '+rp(f.earn)+' dikurangi penarikan '+rp(-f.wd)+' = <b>'+rp(f.earn+f.wd)+'</b> (semua owner, semua produk).':'Upload file income untuk menghitung.'}</div><div class="grid2" style="grid-template-columns:1fr 2fr"><div><label>Saldo di Seller Center (Rp)</label><input type="text" id="scBal"></div><div id="scOut" class="hint"></div></div></div>`;
   h+=`<div class="rnote">Uang masuk sudah termasuk ${rp(c.kirim)} dari ${c.nk} pesanan yang statusnya masih Dikirim. ${lg.last?'Upload terakhir: '+esc(lg.last.at)+' ('+lg.last.nNew+' transaksi baru, '+lg.last.nUpd+' berubah).':'Upload file income + Semua pesanan untuk menambah data.'}</div>`;
   h+=`<div class="panel"><b>Catat transfer</b><div class="grid2" style="grid-template-columns:1fr 1fr 2fr auto auto"><div><label>Tanggal</label><input type="date" id="trT" value="${isoOf(new Date())}"></div><div><label>Nominal (Rp)</label><input type="text" id="trA" placeholder="${N(Math.max(0,Math.round(c.saldo)))}"></div><div><label>Catatan</label><input type="text" id="trN" placeholder="mis. transfer ke owner B"></div><button class="btn primary" data-act="addtr">Catat</button><button class="btn" data-act="fulltr" data-tip="Isi nominal sebesar seluruh saldo">Isi = saldo</button></div>`;
   if(lg.tr.some(t=>(t.o||'2')===viewOwner))h+=`<div class="tablewrap" style="margin-top:10px"><table><thead><tr><th style="cursor:default">Tanggal</th><th class="num" style="cursor:default">Nominal</th><th style="cursor:default">Catatan</th><th></th></tr></thead><tbody>${lg.tr.map((t,i)=>({t,i})).filter(({t})=>(t.o||'2')===viewOwner).sort((a,b)=>a.t.tgl<b.t.tgl?1:-1).map(({t,i})=>`<tr><td>${showDate(t.tgl)}</td><td class="num">${rp(t.amt)}</td><td>${esc(t.ket)}</td><td><button class="ib" data-act="deltr" data-i="${i}" data-tip="Hapus catatan ini">${ic('x')}</button></td></tr>`).join('')}</tbody></table></div>`;
@@ -1397,8 +1395,6 @@ function lgRender(){
   h+=`<div class="tablewrap"><table><thead><tr><th style="cursor:default">Tanggal bayar</th><th class="num" style="cursor:default">Transaksi</th><th class="num" style="cursor:default">Masuk</th><th class="num" style="cursor:default">Pengembalian</th><th class="num" style="cursor:default">Transfer</th><th class="num" style="cursor:default">Saldo berjalan</th></tr></thead><tbody>${c.arr.map(d=>`<tr><td>${showDate(d.t)}</td><td class="num">${d.n}</td><td class="num">${d.in?rp(d.in):'-'}</td><td class="num neg">${d.neg?rp(d.neg):'-'}</td><td class="num">${d.out?rp(-d.out):'-'}</td><td class="num"><b>${rp(d.run)}</b></td></tr>`).join('')||'<tr><td colspan="6" class="empty">Belum ada data. Upload file income dan Semua pesanan.</td></tr>'}</tbody></table></div>`;
   $('saldo').innerHTML=h;
 }
-function lgReadFile(wb){const ws=wb.Sheets['Riwayat penarikan'];if(!ws)return;fixRef(ws);let earn=0,wd=0;XLSX.utils.sheet_to_json(ws).forEach(r=>{const v=Number(r['Total'])||0;if(r['Jenis transaksi']==='Withdrawal')wd+=v;else if(r['Jenis transaksi']==='Earnings')earn+=v});lg.file={earn,wd}}
-$('saldo').addEventListener('input',e=>{if(e.target.id==='scBal'){const v=parseNum(e.target.value),f=lg.file,x=f?f.earn+f.wd:0;$('scOut').textContent=f&&v?'Selisih: '+rp(v-x)+(v===x?' (cocok)':' (tidak cocok)'):''}});
 $('saldo').addEventListener('change',e=>{if(e.target.id==='lgStart'){lg.start=e.target.value;lgSave();lgRender();lgPushMeta().catch(()=>{})}});
 $('saldo').addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
