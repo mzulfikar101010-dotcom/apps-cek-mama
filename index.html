@@ -435,7 +435,7 @@ const EXKEY='rekapExcl';
 const exclMap=new Map();
 const EXVER=2;
 let viewOwner=(()=>{try{return localStorage.getItem('rekapOwner')==='1'?'1':'2'}catch(e){return '2'}})();
-const isO1=b=>!!(b&&b.length)&&b.every(x=>exclMap.has(normName(x)));
+const isO1=b=>!!(b&&b.length)&&b.every(x=>x[0]!=='('&&exclMap.has(normName(x)));
 const hideBy=b=>viewOwner==='1'?!isO1(b):isO1(b);   // nama ternormalisasi -> nama tampil
 function exclSeed(){exclMap.clear();EXCLUDED.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()))}
 function exclSave(){try{localStorage.setItem(EXKEY,JSON.stringify([...exclMap.values()]))}catch(e){}}
@@ -1232,7 +1232,7 @@ function xBuild(){
   const m=new Map();
   const add=(n,c)=>{const k=normName(n);if(!k)return;const e=m.get(k);if(e)e.c+=c;else m.set(k,{n:String(n).replace(/\s+/g,' ').trim(),c})};
   if(state.orders)for(const o of state.orders.values())new Set(o.bases.map(normName)).forEach(k=>{const b=o.bases.find(x=>normName(x)===k);add(b,1)});
-  for(const e of lg.ent.values())(e.b||[]).forEach(b=>add(b,0));
+  for(const e of lg.ent.values())(e.b||[]).filter(b=>b[0]!=='(').forEach(b=>add(b,0));
   for(const [k,n] of exclMap)if(!m.has(k))m.set(k,{n,c:0});
   xs.rows=[...m.entries()].map(([k,v])=>({k,n:exclMap.get(k)||v.n,c:v.c})).sort((a,b)=>(exclMap.has(b.k)-exclMap.has(a.k))||(b.c-a.c)||a.n.localeCompare(b.n));
 }
@@ -1361,7 +1361,7 @@ async function lgIngest(rows){
     if(!r.inIncome||!r.bayar||!r.tglBayar)continue;
     const k=r.id+'|'+r.tglBayar,e=lg.ent.get(k),st=r.statusAsli;
     if(!e){const n={k,id:r.id,tgl:r.tglBayar,amt:r.bayar,p:r.produk,st,b:r.bases||[],up};lg.ent.set(k,n);changed.push(n);nNew++}
-    else if(e.amt!==r.bayar||(hasOrd&&e.st!==st)){if(e.amt!==r.bayar)nUpd++;e.amt=r.bayar;if(hasOrd){e.st=st;e.p=r.produk;e.b=r.bases||e.b}changed.push(e)}
+    else if(e.amt!==r.bayar||(hasOrd&&(e.st!==st||JSON.stringify(r.bases||[])!==JSON.stringify(e.b||[])))){if(e.amt!==r.bayar)nUpd++;e.amt=r.bayar;if(hasOrd){e.st=st;e.p=r.produk;e.b=r.bases||e.b}changed.push(e)}
   }
   lg.last={nNew,nUpd,at:new Date().toLocaleString('id-ID')};
   if(changed.length){
