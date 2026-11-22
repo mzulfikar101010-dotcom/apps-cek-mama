@@ -27,6 +27,7 @@ h1{font-size:21px;margin:0 0 2px;letter-spacing:-.01em}
 .ic{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.2em;flex:none}
 
 /* upload */
+.ownsw{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}.ownsw span{color:var(--muted);font-size:13px}.ownb{padding:7px 18px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--muted);font-weight:600;cursor:pointer}.ownb.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 .drops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
 .drop{display:flex;align-items:center;gap:12px;border:1.5px dashed var(--line);background:var(--card);border-radius:14px;padding:12px 16px;cursor:pointer;transition:.15s;min-width:0}
 .drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
@@ -260,8 +261,9 @@ input[type=text].pf-in.w{width:100%;text-align:left}
 <body>
 <div class="wrap">
   <h1>Rekap Pesanan &amp; Pencairan</h1>
-  <p class="sub">Upload file <b>Income</b> dan <b>Semua pesanan</b> (klik atau seret ke kotak di bawah). Data digabung otomatis lewat Order ID dan diproses di browser kamu, tidak ada yang dikirim ke server.</p>
+  <p class="sub">Pilih owner, lalu upload file <b>Income</b> dan <b>Semua pesanan</b> kalau mau memperbarui data. Kalau tidak upload, aplikasi menampilkan data terakhir yang tersimpan di spreadsheet. Yang tersimpan hanya nomor pesanan, nama produk, status, dan nominal; nama dan alamat pembeli tidak ikut.</p>
 
+  <div class="ownsw"><span>Lihat data milik:</span><button class="ownb" data-own="1">Owner 1</button><button class="ownb" data-own="2">Owner 2</button></div>
   <div class="drops">
     <div class="drop" id="dropIncome" data-kind="income">
       <span class="drop-ic"><i data-ic="upload"></i></span>
@@ -319,7 +321,7 @@ input[type=text].pf-in.w{width:100%;text-align:left}
           <div class="pop-body">
             <label class="ck"><input type="checkbox" id="fPaidOnly"> Hanya yang ada nominalnya (cair atau potongan)</label>
             <label class="ck"><input type="checkbox" id="fIncludeUnpaid"> Sertakan pesanan yang belum ada di file income</label>
-            <label class="ck"><input type="checkbox" id="fShowExcl"> Tampilkan juga produk yang dikecualikan</label>
+            <label class="ck"><input type="checkbox" id="fShowExcl"> Tampilkan juga milik owner lain</label>
           </div>
         </details>
         <button class="ib" id="btnExcl" data-tip="Atur produk yang dikecualikan (disembunyikan dari semua tabel)"><i data-ic="eyeoff"></i></button>
@@ -352,7 +354,7 @@ input[type=text].pf-in.w{width:100%;text-align:left}
   <div class="modal" role="dialog" aria-modal="true" aria-label="Produk dikecualikan">
     <div class="modal-h"><div><b>Pemilik produk: owner 1 atau owner 2</b><span id="xCnt"></span></div><button class="ib primary" id="xClose" data-tip="Simpan sebagai aturan tetap"><i data-ic="check"></i> Simpan</button></div>
     <div class="modal-b">
-      <div class="xnote">Sakelar <b>nyala = milik owner 1</b> (disembunyikan, tidak dihitung), sakelar mati = owner 2. Saldo = uang owner 2 yang harus kamu transfer. Pesanan produk itu disembunyikan dari semua tabel dan hitungan. Pesanan berisi beberapa produk baru disembunyikan kalau <b>semua</b> produknya dikecualikan. Klik <b>Simpan</b> supaya jadi aturan tetap: tersimpan ke spreadsheet dan sama di semua perangkat.</div>
+      <div class="xnote">Sakelar <b>nyala = milik owner 1</b> (disembunyikan, tidak dihitung), sakelar mati = owner 2. Pilih mau melihat Owner 1 atau Owner 2 di bagian atas halaman. Pesanan produk itu disembunyikan dari semua tabel dan hitungan. Pesanan berisi beberapa produk baru disembunyikan kalau <b>semua</b> produknya dikecualikan. Klik <b>Simpan</b> supaya jadi aturan tetap: tersimpan ke spreadsheet dan sama di semua perangkat.</div>
       <input type="text" id="xSearch" placeholder="Cari nama produk…">
       <div id="xList" style="margin-top:8px"></div>
       <textarea id="xImp" placeholder="Tempel daftar nama produk, satu nama per baris. Daftar yang sekarang akan diganti."></textarea>
@@ -422,13 +424,19 @@ const EXCLUDED=[
   "PAKET OKE ISI 7 SPESIAL JAJAN LEBARAN",
   "PAKET C ISI 6 SPESIAL JAJAN LEBARAN KHONG GUAN",
   "HOCK GUAN KALENG 1.350gr",
-  "HOCKGUAN 1.350GR JAJAN LEBARAN"
+  "HOCKGUAN 1.350GR JAJAN LEBARAN",
+  "PAKET K ISI 10 SPESIAL JAJAN LEBARAN",
+  "PAKET J ISI 10 SPESIAL JAJAN LEBARAN"
 ];
 const normName=s=>String(s).replace(/\s+/g,' ').trim().toLowerCase();
 /* Daftar produk dikecualikan: disimpan di browser (localStorage) dan diatur lewat tombol "Atur produk dikecualikan".
    Daftar EXCLUDED di atas hanya dipakai sebagai isi awal / saat "Kembalikan daftar awal". */
 const EXKEY='rekapExcl';
-const exclMap=new Map();   // nama ternormalisasi -> nama tampil
+const exclMap=new Map();
+const EXVER=2;
+let viewOwner=(()=>{try{return localStorage.getItem('rekapOwner')==='1'?'1':'2'}catch(e){return '2'}})();
+const isO1=b=>!!(b&&b.length)&&b.every(x=>exclMap.has(normName(x)));
+const hideBy=b=>viewOwner==='1'?!isO1(b):isO1(b);   // nama ternormalisasi -> nama tampil
 function exclSeed(){exclMap.clear();EXCLUDED.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()))}
 function exclSave(){try{localStorage.setItem(EXKEY,JSON.stringify([...exclMap.values()]))}catch(e){}}
 (function(){
@@ -572,7 +580,7 @@ function parseIncome(rows,h){
     if(o){o.pay+=pay;o.ong+=ong;o.aff+=aff}
     else map.set(id,{id,pay,ong,aff,jenis,rel:String(r[c['ID pesanan terkait']]??'').trim(),tglBuat:toIso(r[c['Waktu pemesanan']]),tglBayar:toIso(r[c['Waktu pembayaran pesanan']])});
   }
-  state.income=map;
+  state.income=snapMerge(state.income,map);snap.dirty=true;
 }
 function parseOrders(rows,h){
   const c=colIndex(rows[h]);const map=new Map();
@@ -592,7 +600,7 @@ function parseOrders(rows,h){
       map.set(id,{id,produk:nama,parts:[nama],bases:[base],status:st,tglBuat:toIso(r[c['Created Time']])});
     }
   }
-  state.orders=map;
+  state.orders=snapMerge(state.orders,map);snap.dirty=true;
 }
 
 /* ---------- gabung data ---------- */
@@ -640,9 +648,9 @@ function rebuild(){
   }
   if(inc)lgReady.then(()=>lgIngest(rows));
   const showEx=$('fShowExcl').checked;
-  const kept=showEx?rows:rows.filter(r=>!(r.bases.length&&r.bases.every(x=>exclMap.has(normName(x)))));
+  const kept=showEx?rows:rows.filter(r=>!hideBy(r.bases));
   const hidden=rows.length-kept.length;
-  $('exclInfo').textContent=(showEx?'':(hidden+' baris dari '+exclMap.size+' produk dikecualikan disembunyikan'))+(skipAdj?(showEx?'':' · ')+skipAdj+' baris penyesuaian (bukan pesanan) dilewati':'');
+  $('exclInfo').textContent=(showEx?'':(hidden+' baris milik owner '+(viewOwner==='1'?'2':'1')+' disembunyikan'))+(skipAdj?(showEx?'':' · ')+skipAdj+' baris penyesuaian (bukan pesanan) dilewati':'');
   state.rows=kept;
   $('app').style.display='block';
   buildProdukList();
@@ -652,6 +660,7 @@ function rebuild(){
     const miss=rows.filter(r=>r.inIncome&&r.status==='Tidak ada di file pesanan').length;
     if(miss)notice(miss+' order di file income tidak ditemukan di file Semua pesanan (biasanya order lama di luar periode file pesanan).');
   }
+  if(snap.dirty){snap.dirty=false;clearTimeout(snap.timer);snap.timer=setTimeout(snapSave,2500)}
   state.page=1;applyFilters();
 }
 
@@ -1334,15 +1343,15 @@ async function lgPush(list){
   const rowOf=e=>[e.k,e.id,e.tgl,e.amt,e.p,e.st,JSON.stringify(e.b||[]),e.up];
   for(let i=0;i<list.length;i+=2000)await lgPost({action:'ledger_upsert',rows:list.slice(i,i+2000).map(rowOf)});
 }
-const lgPushMeta=()=>lgPost({action:'meta_save',transfers:lg.tr,start:lg.start,prods:{o2:[...exclMap.values()],seen:[...lg.seen]}});
+const lgPushMeta=()=>lgPost({action:'meta_save',transfers:lg.tr,start:lg.start,prods:{o2:[...exclMap.values()],seen:[...lg.seen],v:EXVER}});
 async function lgLoadRemote(){
   const j=await lgPost({action:'ledger_load'});
   if(j.rows.length||j.transfers.length){
     lg.ent=new Map(j.rows.map(r=>{const e={k:String(r[0]),id:String(r[1]),tgl:String(r[2]),amt:Number(r[3])||0,p:String(r[4]||''),st:String(r[5]||''),up:String(r[7]||'')};try{e.b=JSON.parse(r[6]||'[]')}catch(x){e.b=[]}return [e.k,e]}));
-    lg.tr=j.transfers.map(t=>({id:String(t[0]),tgl:String(t[1]),amt:Number(t[2])||0,ket:String(t[3]||'')}));
+    lg.tr=j.transfers.map(t=>({id:String(t[0]),tgl:String(t[1]),amt:Number(t[2])||0,ket:String(t[3]||''),o:String(t[4]||'2')}));
     lg.start=String(j.start||'');lgSave();
   }
-  if(j.prods&&Array.isArray(j.prods.o2)){exclMap.clear();j.prods.o2.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()));lg.seen=new Set(j.prods.seen||[]);exclSave();lgSave();if(state.income||state.orders)rebuild()}
+  if(j.prods&&Array.isArray(j.prods.o2)){exclMap.clear();j.prods.o2.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()));if((j.prods.v||0)<EXVER)EXCLUDED.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()));lg.seen=new Set(j.prods.seen||[]);exclSave();lgSave();if(state.income||state.orders)rebuild()}
   lg.msg='Tersambung ke spreadsheet ('+lg.ent.size+' transaksi dimuat)';
 }
 const lgReady=(async()=>{try{if(lgUrl())await lgLoadRemote()}catch(e){lg.msg='Spreadsheet belum tersambung: '+e.message}})();
@@ -1364,12 +1373,12 @@ async function lgIngest(rows){
   if(state.tab==='saldo')lgRender();
 }
 function lgCalc(){
-  const sh=$('fShowExcl').checked,ex=e=>!sh&&e.b&&e.b.length&&e.b.every(x=>exclMap.has(normName(x)));
+  const sh=$('fShowExcl').checked,ex=e=>!sh&&hideBy(e.b);
   const ok=t=>!lg.start||t>=lg.start,days=new Map();
   const g=t=>{let d=days.get(t);if(!d){d={t,in:0,neg:0,out:0,n:0};days.set(t,d)}return d};
   let kirim=0,nk=0;const unk={n:0,s:0};
   for(const e of lg.ent.values()){if(ex(e)||!ok(e.tgl))continue;const d=g(e.tgl);d.n++;if((e.b||[]).some(x=>!lg.seen.has(normName(x)))){unk.n++;unk.s+=e.amt}if(e.amt>0){d.in+=e.amt;if(e.st==='Dikirim'){kirim+=e.amt;nk++}}else d.neg+=e.amt}
-  for(const t of lg.tr)if(ok(t.tgl))g(t.tgl).out+=t.amt;
+  for(const t of lg.tr)if(ok(t.tgl)&&(t.o||'2')===viewOwner)g(t.tgl).out+=t.amt;
   const arr=[...days.values()].sort((a,b)=>a.t<b.t?-1:1);let run=0;
   for(const d of arr){run+=d.in+d.neg-d.out;d.run=run}
   const sum=k=>arr.reduce((a,d)=>a+d[k],0);
@@ -1377,13 +1386,13 @@ function lgCalc(){
 }
 function lgRender(){
   const c=lgCalc(),N=new Intl.NumberFormat('id-ID').format;
-  let h=`<div class="cards"><div class="stat"><span>Uang masuk (sudah cair)</span><strong>${rp(c.in)}</strong></div><div class="stat tdkc"><span>Pengembalian / potongan</span><strong>${rp(c.neg)}</strong></div><div class="stat"><span>Sudah kamu transfer</span><strong>${rp(-c.out)}</strong></div><div class="stat netc"><span>SALDO owner 2 (belum ditransfer)</span><strong>${rp(c.saldo)}</strong></div></div>`;
+  let h=`<div class="cards"><div class="stat"><span>Uang masuk (sudah cair)</span><strong>${rp(c.in)}</strong></div><div class="stat tdkc"><span>Pengembalian / potongan</span><strong>${rp(c.neg)}</strong></div><div class="stat"><span>Sudah kamu transfer</span><strong>${rp(-c.out)}</strong></div><div class="stat netc"><span>SALDO owner ${viewOwner} (belum ditransfer)</span><strong>${rp(c.saldo)}</strong></div></div>`;
   if(c.unk.n)h+=`<div class="notice" style="display:block"><b>${c.unk.n} transaksi (${rp(c.unk.s)})</b> berasal dari produk yang belum kamu tentukan pemiliknya, sementara dihitung milik owner 2. <button class="btn" data-act="openprod">Atur produk</button></div>`;
   const f=lg.file;
   h+=`<div class="panel"><b>Cek dengan Seller Center</b><div class="hint">${f?'Menurut file income: Earnings '+rp(f.earn)+' dikurangi penarikan '+rp(-f.wd)+' = <b>'+rp(f.earn+f.wd)+'</b> (semua owner, semua produk).':'Upload file income untuk menghitung.'}</div><div class="grid2" style="grid-template-columns:1fr 2fr"><div><label>Saldo di Seller Center (Rp)</label><input type="text" id="scBal"></div><div id="scOut" class="hint"></div></div></div>`;
   h+=`<div class="rnote">Uang masuk sudah termasuk ${rp(c.kirim)} dari ${c.nk} pesanan yang statusnya masih Dikirim. ${lg.last?'Upload terakhir: '+esc(lg.last.at)+' ('+lg.last.nNew+' transaksi baru, '+lg.last.nUpd+' berubah).':'Upload file income + Semua pesanan untuk menambah data.'}</div>`;
   h+=`<div class="panel"><b>Catat transfer</b><div class="grid2" style="grid-template-columns:1fr 1fr 2fr auto auto"><div><label>Tanggal</label><input type="date" id="trT" value="${isoOf(new Date())}"></div><div><label>Nominal (Rp)</label><input type="text" id="trA" placeholder="${N(Math.max(0,Math.round(c.saldo)))}"></div><div><label>Catatan</label><input type="text" id="trN" placeholder="mis. transfer ke owner B"></div><button class="btn primary" data-act="addtr">Catat</button><button class="btn" data-act="fulltr" data-tip="Isi nominal sebesar seluruh saldo">Isi = saldo</button></div>`;
-  if(lg.tr.length)h+=`<div class="tablewrap" style="margin-top:10px"><table><thead><tr><th style="cursor:default">Tanggal</th><th class="num" style="cursor:default">Nominal</th><th style="cursor:default">Catatan</th><th></th></tr></thead><tbody>${lg.tr.map((t,i)=>({t,i})).sort((a,b)=>a.t.tgl<b.t.tgl?1:-1).map(({t,i})=>`<tr><td>${showDate(t.tgl)}</td><td class="num">${rp(t.amt)}</td><td>${esc(t.ket)}</td><td><button class="ib" data-act="deltr" data-i="${i}" data-tip="Hapus catatan ini">${ic('x')}</button></td></tr>`).join('')}</tbody></table></div>`;
+  if(lg.tr.some(t=>(t.o||'2')===viewOwner))h+=`<div class="tablewrap" style="margin-top:10px"><table><thead><tr><th style="cursor:default">Tanggal</th><th class="num" style="cursor:default">Nominal</th><th style="cursor:default">Catatan</th><th></th></tr></thead><tbody>${lg.tr.map((t,i)=>({t,i})).filter(({t})=>(t.o||'2')===viewOwner).sort((a,b)=>a.t.tgl<b.t.tgl?1:-1).map(({t,i})=>`<tr><td>${showDate(t.tgl)}</td><td class="num">${rp(t.amt)}</td><td>${esc(t.ket)}</td><td><button class="ib" data-act="deltr" data-i="${i}" data-tip="Hapus catatan ini">${ic('x')}</button></td></tr>`).join('')}</tbody></table></div>`;
   h+=`</div><div class="panel"><div class="grid2" style="grid-template-columns:1fr auto auto"><div><label>Saldo mulai dihitung dari tanggal bayar (kosong = semua data)</label><input type="date" id="lgStart" value="${esc(lg.start)}"></div><button class="btn" data-act="pull">Muat dari spreadsheet</button><button class="btn" data-act="push">Simpan semua ke spreadsheet</button></div><div class="hint">${esc(lg.msg||'Belum tersambung ke spreadsheet.')} Transfer yang tanggalnya sebelum tanggal mulai tidak ikut dihitung.</div></div>`;
   h+=`<div class="tablewrap"><table><thead><tr><th style="cursor:default">Tanggal bayar</th><th class="num" style="cursor:default">Transaksi</th><th class="num" style="cursor:default">Masuk</th><th class="num" style="cursor:default">Pengembalian</th><th class="num" style="cursor:default">Transfer</th><th class="num" style="cursor:default">Saldo berjalan</th></tr></thead><tbody>${c.arr.map(d=>`<tr><td>${showDate(d.t)}</td><td class="num">${d.n}</td><td class="num">${d.in?rp(d.in):'-'}</td><td class="num neg">${d.neg?rp(d.neg):'-'}</td><td class="num">${d.out?rp(-d.out):'-'}</td><td class="num"><b>${rp(d.run)}</b></td></tr>`).join('')||'<tr><td colspan="6" class="empty">Belum ada data. Upload file income dan Semua pesanan.</td></tr>'}</tbody></table></div>`;
   $('saldo').innerHTML=h;
@@ -1397,7 +1406,7 @@ $('saldo').addEventListener('click',async e=>{
   else if(a==='openprod')xOpen();
   else if(a==='addtr'){
     const t=$('trT').value,v=parseNum($('trA').value);if(!t||!(v>0)){toast('Isi tanggal dan nominal');return}
-    lg.tr.push({id:'T'+Date.now(),tgl:t,amt:v,ket:$('trN').value.trim()});lgSave();lgRender();
+    lg.tr.push({id:'T'+Date.now(),tgl:t,amt:v,ket:$('trN').value.trim(),o:viewOwner});lgSave();lgRender();
     try{await lgPushMeta()}catch(x){lg.msg='Transfer tersimpan di browser, gagal ke spreadsheet: '+x.message;lgRender()}
   }
   else if(a==='deltr'){lg.tr.splice(+b.dataset.i,1);lgSave();lgRender();lgPushMeta().catch(()=>{})}
@@ -1405,6 +1414,35 @@ $('saldo').addEventListener('click',async e=>{
   else if(a==='push'){try{lg.msg='Menyimpan…';lgRender();await lgPush([...lg.ent.values()]);await lgPushMeta();lg.msg='Semua data tersimpan ke spreadsheet ('+lg.ent.size+' transaksi)'}catch(x){lg.msg='Gagal menyimpan: '+x.message}lgRender()}
 });
 /* ===== END SALDO ===== */
+/* ===== PEMILIH OWNER + DATA TERSIMPAN DI SPREADSHEET ===== */
+function ownUI(){document.querySelectorAll('.ownb').forEach(b=>b.classList.toggle('on',b.dataset.own===viewOwner))}
+document.querySelectorAll('.ownb').forEach(b=>b.addEventListener('click',()=>{viewOwner=b.dataset.own;try{localStorage.setItem('rekapOwner',viewOwner)}catch(e){}ownUI();if(state.income||state.orders){state.page=1;rebuild()}else if(state.tab==='saldo')lgRender()}));
+ownUI();
+try{if(+localStorage.getItem('rekapExVer')!==EXVER){EXCLUDED.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()));exclSave();localStorage.setItem('rekapExVer',EXVER)}}catch(e){}
+const snap={timer:null,dirty:false};
+function snapMerge(a,b){return a?new Map([...a,...b]):b}
+async function gz(str){const w=new CompressionStream('gzip'),wr=w.writable.getWriter();wr.write(new TextEncoder().encode(str));wr.close();const b=new Uint8Array(await new Response(w.readable).arrayBuffer());let o='';for(let i=0;i<b.length;i+=32768)o+=String.fromCharCode.apply(null,b.subarray(i,i+32768));return btoa(o)}
+async function gunz(b64){const b=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)),d=new DecompressionStream('gzip'),wr=d.writable.getWriter();wr.write(b);wr.close();return new TextDecoder().decode(await new Response(d.readable).arrayBuffer())}
+async function snapSave(){
+  try{
+    await lgReady;if(!lgUrl()||(!state.income&&!state.orders))return;
+    const b=await gz(JSON.stringify({at:new Date().toLocaleString('id-ID'),i:state.income?[...state.income.values()]:[],o:state.orders?[...state.orders.values()]:[]}));
+    const ch=[];for(let i=0;i<b.length;i+=45000)ch.push(b.slice(i,i+45000));
+    await lgPost({action:'snap_save',chunks:ch});lg.msg='Data pesanan tersimpan ke spreadsheet ('+Math.round(b.length/1024)+' KB)';toast('Data tersimpan ke spreadsheet');
+  }catch(e){lg.msg='Gagal menyimpan data ke spreadsheet: '+e.message;toast('Gagal simpan ke spreadsheet')}
+  if(state.tab==='saldo')lgRender();
+}
+async function snapLoad(){
+  try{
+    if(!lgUrl())return;
+    const j=await lgPost({action:'snap_load'});if(!j.chunks.length)return;
+    const d=JSON.parse(await gunz(j.chunks.join('')));
+    if(d.i.length){const m=new Map(d.i.map(x=>[x.id,x]));state.income=state.income?new Map([...m,...state.income]):m;setName('Income','dimuat dari spreadsheet')}
+    if(d.o.length){const m=new Map(d.o.map(x=>[x.id,x]));state.orders=state.orders?new Map([...m,...state.orders]):m;setName('Orders','dimuat dari spreadsheet')}
+    rebuild();notice('Data dimuat dari spreadsheet (terakhir diperbarui '+d.at+'). Upload file baru untuk memperbarui.');
+  }catch(e){lg.msg='Gagal memuat data pesanan: '+e.message}
+}
+lgReady.then(snapLoad);
 
 </script>
 </body>
