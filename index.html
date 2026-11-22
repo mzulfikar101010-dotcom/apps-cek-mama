@@ -352,7 +352,7 @@ input[type=text].pf-in.w{width:100%;text-align:left}
   <div class="modal" role="dialog" aria-modal="true" aria-label="Produk dikecualikan">
     <div class="modal-h"><div><b>Pemilik produk: owner 1 atau owner 2</b><span id="xCnt"></span></div><button class="ib primary" id="xClose" data-tip="Simpan sebagai aturan tetap"><i data-ic="check"></i> Simpan</button></div>
     <div class="modal-b">
-      <div class="xnote">Sakelar <b>nyala = milik owner 2</b> (tidak dihitung di saldo kamu), sakelar mati = owner 1. Pesanan produk itu disembunyikan dari semua tabel dan hitungan. Pesanan berisi beberapa produk baru disembunyikan kalau <b>semua</b> produknya dikecualikan. Klik <b>Simpan</b> supaya jadi aturan tetap: tersimpan ke spreadsheet dan sama di semua perangkat.</div>
+      <div class="xnote">Sakelar <b>nyala = milik owner 1</b> (disembunyikan, tidak dihitung), sakelar mati = owner 2. Saldo = uang owner 2 yang harus kamu transfer. Pesanan produk itu disembunyikan dari semua tabel dan hitungan. Pesanan berisi beberapa produk baru disembunyikan kalau <b>semua</b> produknya dikecualikan. Klik <b>Simpan</b> supaya jadi aturan tetap: tersimpan ke spreadsheet dan sama di semua perangkat.</div>
       <input type="text" id="xSearch" placeholder="Cari nama produk…">
       <div id="xList" style="margin-top:8px"></div>
       <textarea id="xImp" placeholder="Tempel daftar nama produk, satu nama per baris. Daftar yang sekarang akan diganti."></textarea>
@@ -1230,8 +1230,8 @@ function xBuild(){
 function xDraw(){
   const q=xs.q.trim().toLowerCase();
   const rows=xs.rows.filter(r=>!q||r.n.toLowerCase().includes(q));
-  $('xCnt').textContent=exclMap.size+' milik owner 2'+(state.orders?' · '+xs.rows.length+' produk di file':' · file Semua pesanan belum diupload');
-  $('xList').innerHTML=rows.map(r=>{const off=exclMap.has(r.k);return `<button type="button" class="xrow ${off?'off':''}" data-k="${esc(r.k)}"><span class="t">${esc(r.n)}<small>${state.orders&&r.c?r.c+' pesanan · ':''}${off?'owner 2':'owner 1'}${lg.seen.has(r.k)?'':' · BARU, belum ditentukan'}</small></span><span class="sw ${off?'on':''}"></span></button>`}).join('')||'<div class="empty">Tidak ada produk yang cocok.</div>';
+  $('xCnt').textContent=exclMap.size+' milik owner 1'+(state.orders?' · '+xs.rows.length+' produk di file':' · file Semua pesanan belum diupload');
+  $('xList').innerHTML=rows.map(r=>{const off=exclMap.has(r.k);return `<button type="button" class="xrow ${off?'off':''}" data-k="${esc(r.k)}"><span class="t">${esc(r.n)}<small>${state.orders&&r.c?r.c+' pesanan · ':''}${off?'owner 1':'owner 2'}${lg.seen.has(r.k)?'':' · BARU, belum ditentukan'}</small></span><span class="sw ${off?'on':''}"></span></button>`}).join('')||'<div class="empty">Tidak ada produk yang cocok.</div>';
 }
 function xOpen(){xBuild();xs.q='';xs.changed=false;$('xSearch').value='';$('xImp').style.display='none';$('xMsg').textContent='';xDraw();$('xOv').classList.add('open')}
 function xClose(){
@@ -1377,8 +1377,8 @@ function lgCalc(){
 }
 function lgRender(){
   const c=lgCalc(),N=new Intl.NumberFormat('id-ID').format;
-  let h=`<div class="cards"><div class="stat"><span>Uang masuk (sudah cair)</span><strong>${rp(c.in)}</strong></div><div class="stat tdkc"><span>Pengembalian / potongan</span><strong>${rp(c.neg)}</strong></div><div class="stat"><span>Sudah kamu transfer</span><strong>${rp(-c.out)}</strong></div><div class="stat netc"><span>SALDO (belum ditransfer)</span><strong>${rp(c.saldo)}</strong></div></div>`;
-  if(c.unk.n)h+=`<div class="notice" style="display:block"><b>${c.unk.n} transaksi (${rp(c.unk.s)})</b> berasal dari produk yang belum kamu tentukan pemiliknya, sementara dihitung milik owner 1. <button class="btn" data-act="openprod">Atur produk</button></div>`;
+  let h=`<div class="cards"><div class="stat"><span>Uang masuk (sudah cair)</span><strong>${rp(c.in)}</strong></div><div class="stat tdkc"><span>Pengembalian / potongan</span><strong>${rp(c.neg)}</strong></div><div class="stat"><span>Sudah kamu transfer</span><strong>${rp(-c.out)}</strong></div><div class="stat netc"><span>SALDO owner 2 (belum ditransfer)</span><strong>${rp(c.saldo)}</strong></div></div>`;
+  if(c.unk.n)h+=`<div class="notice" style="display:block"><b>${c.unk.n} transaksi (${rp(c.unk.s)})</b> berasal dari produk yang belum kamu tentukan pemiliknya, sementara dihitung milik owner 2. <button class="btn" data-act="openprod">Atur produk</button></div>`;
   const f=lg.file;
   h+=`<div class="panel"><b>Cek dengan Seller Center</b><div class="hint">${f?'Menurut file income: Earnings '+rp(f.earn)+' dikurangi penarikan '+rp(-f.wd)+' = <b>'+rp(f.earn+f.wd)+'</b> (semua owner, semua produk).':'Upload file income untuk menghitung.'}</div><div class="grid2" style="grid-template-columns:1fr 2fr"><div><label>Saldo di Seller Center (Rp)</label><input type="text" id="scBal"></div><div id="scOut" class="hint"></div></div></div>`;
   h+=`<div class="rnote">Uang masuk sudah termasuk ${rp(c.kirim)} dari ${c.nk} pesanan yang statusnya masih Dikirim. ${lg.last?'Upload terakhir: '+esc(lg.last.at)+' ('+lg.last.nNew+' transaksi baru, '+lg.last.nUpd+' berubah).':'Upload file income + Semua pesanan untuk menambah data.'}</div>`;
