@@ -205,12 +205,13 @@ details summary{cursor:pointer;font-weight:600}
 .xrow:hover{background:var(--bg)}
 .xrow .t{flex:1;min-width:0;word-break:break-word}
 .xrow small{display:block;color:var(--muted);font-size:12px}
-.xsel{width:150px;flex:none;padding:6px 9px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);font-weight:600;cursor:pointer}
-.xsel.o0{border-color:var(--warn);color:var(--warn);background:var(--warn-bg)}
-.xsel.o1{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
-.xsel.o2{border-color:var(--teal);color:var(--teal);background:var(--teal-soft)}
-.xtools{display:grid;grid-template-columns:1fr 150px 200px;gap:8px}
-.xtools select{width:100%}
+.xbtns{display:flex;gap:6px;flex:none}
+.xb{min-width:84px;padding:7px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--muted);cursor:pointer;font-weight:600}
+.xb:hover{border-color:var(--accent)}
+.xb.on1{background:var(--accent);border-color:var(--accent);color:#fff}
+.xb.on2{background:var(--teal);border-color:var(--teal);color:#fff}
+.xun{color:var(--warn)}
+.xtools2{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
 
 /* hitung profit */
 .pf-top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
@@ -356,7 +357,7 @@ input[type=text].pf-in.w{width:100%;text-align:left}
     <div class="modal-h"><div><b>Pemilik produk: owner 1 atau owner 2</b><span id="xCnt"></span></div><button class="ib primary" id="xClose" data-tip="Simpan sebagai aturan tetap"><i data-ic="check"></i> Simpan</button></div>
     <div class="modal-b">
       <div class="xnote">Daftar ini dicatat dari file <b>Semua pesanan</b> yang sedang dimuat, jadi nama yang tidak ada di file tidak muncul. Pilih pemilik tiap produk lewat kolom pilihan di kanan. Pesanan milik owner lain disembunyikan dari semua tabel dan hitungan; pesanan berisi beberapa produk dianggap milik owner 1 hanya kalau <b>semua</b> produknya owner 1. Produk <b>Belum dipilih</b> sementara dihitung milik owner 2. Pilihan tersimpan ke spreadsheet saat kamu menekan <b>Simpan</b>.</div>
-      <div class="xtools"><input type="text" id="xSearch" placeholder="Cari nama produk…"><select id="xFilter"><option value="all">Semua</option><option value="0">Belum dipilih</option><option value="1">Owner 1</option><option value="2">Owner 2</option></select><select id="xBulk"><option value="">Set semua yang tampil…</option><option value="1">→ Owner 1</option><option value="2">→ Owner 2</option><option value="0">→ Belum dipilih</option></select></div>
+      <input type="text" id="xSearch" placeholder="Cari nama produk…"><div class="xtools2"><div class="chips" id="xFilter"><button type="button" class="chip on" data-f="all">Semua</button><button type="button" class="chip" data-f="0">Belum dipilih</button><button type="button" class="chip" data-f="1">Owner 1</button><button type="button" class="chip" data-f="2">Owner 2</button></div><span style="flex:1"></span><span class="muted" style="font-size:12px">Set semua yang tampil:</span><button type="button" class="ib" data-bulk="1">Owner 1</button><button type="button" class="ib" data-bulk="2">Owner 2</button></div>
       <div id="xList" style="margin-top:8px"></div>
     </div>
     <div class="modal-f">
@@ -1190,7 +1191,7 @@ function xCount(){
 }
 function xDraw(){
   const rows=xVisible();
-  $('xList').innerHTML=rows.map(r=>{const o=xOwn(r.k);return `<div class="xrow"><span class="t">${esc(r.n)}<small>${r.c} pesanan</small></span><select class="xsel o${o}" data-k="${esc(r.k)}"><option value="0"${o==='0'?' selected':''}>Belum dipilih</option><option value="1"${o==='1'?' selected':''}>Owner 1</option><option value="2"${o==='2'?' selected':''}>Owner 2</option></select></div>`}).join('')||'<div class="empty">'+(state.orders?'Tidak ada produk yang cocok.':'Upload file Semua pesanan dulu supaya nama produknya tercatat.')+'</div>';
+  $('xList').innerHTML=rows.map(r=>{const o=xOwn(r.k);return `<div class="xrow" data-k="${esc(r.k)}"><span class="t">${esc(r.n)}<small>${r.c} pesanan<span class="xun">${o==='0'?' · belum dipilih':''}</span></small></span><span class="xbtns"><button type="button" class="xb${o==='1'?' on1':''}" data-o="1">Owner 1</button><button type="button" class="xb${o==='2'?' on2':''}" data-o="2">Owner 2</button></span></div>`}).join('')||'<div class="empty">'+(state.orders?'Tidak ada produk yang cocok.':'Upload file Semua pesanan dulu supaya nama produknya tercatat.')+'</div>';
   xCount();
 }
 function xSet(k,v){
@@ -1199,7 +1200,7 @@ function xSet(k,v){
   else if(v==='2'){exclMap.delete(k);lg.seen.add(k)}
   else{exclMap.delete(k);lg.seen.delete(k)}
 }
-function xOpen(){xBuild();xs.q='';xs.f='all';xs.changed=false;$('xSearch').value='';$('xFilter').value='all';$('xBulk').value='';$('xMsg').textContent='';xDraw();$('xOv').classList.add('open')}
+function xOpen(){xBuild();xs.q='';xs.f='all';xs.changed=false;$('xSearch').value='';document.querySelectorAll('#xFilter .chip').forEach(c=>c.classList.toggle('on',c.dataset.f==='all'));$('xMsg').textContent='';xDraw();$('xOv').classList.add('open')}
 function xClose(){
   if(!$('xOv').classList.contains('open'))return;
   $('xOv').classList.remove('open');
@@ -1213,16 +1214,22 @@ $('xClose').addEventListener('click',xClose);
 $('xOv').addEventListener('click',e=>{if(e.target===$('xOv'))xClose()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')xClose()});
 $('xSearch').addEventListener('input',e=>{xs.q=e.target.value;xDraw()});
-$('xFilter').addEventListener('change',e=>{xs.f=e.target.value;xDraw()});
-$('xList').addEventListener('change',e=>{
-  const sel=e.target.closest('select[data-k]');if(!sel)return;
-  xSet(sel.dataset.k,sel.value);exclSave();lgSave();xs.changed=true;
-  sel.className='xsel o'+xOwn(sel.dataset.k);xCount();
+$('xFilter').addEventListener('click',e=>{
+  const c=e.target.closest('.chip');if(!c)return;
+  xs.f=c.dataset.f;document.querySelectorAll('#xFilter .chip').forEach(x=>x.classList.toggle('on',x===c));xDraw();
 });
-$('xBulk').addEventListener('change',e=>{
-  const v=e.target.value;e.target.value='';if(v==='')return;
-  const rows=xVisible();if(!rows.length)return;
-  if(rows.length>1&&!confirm('Ubah '+rows.length+' produk yang sedang tampil menjadi "'+(v==='1'?'Owner 1':v==='2'?'Owner 2':'Belum dipilih')+'"?'))return;
+$('xList').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-o]');if(!b)return;
+  const row=b.closest('.xrow'),k=row.dataset.k;
+  xSet(k,b.dataset.o);exclSave();lgSave();xs.changed=true;
+  const o=xOwn(k);
+  row.querySelectorAll('.xb').forEach(x=>x.className='xb'+(x.dataset.o===o?' on'+o:''));
+  row.querySelector('.xun').textContent='';xCount();
+});
+document.querySelector('.xtools2').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-bulk]');if(!b)return;
+  const v=b.dataset.bulk,rows=xVisible();if(!rows.length)return;
+  if(rows.length>1&&!confirm('Ubah '+rows.length+' produk yang sedang tampil menjadi Owner '+v+'?'))return;
   rows.forEach(r=>xSet(r.k,v));exclSave();lgSave();xs.changed=true;xDraw();
 });
 $('xDefault').addEventListener('click',()=>{
