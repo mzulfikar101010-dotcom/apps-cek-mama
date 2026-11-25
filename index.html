@@ -201,15 +201,16 @@ details summary{cursor:pointer;font-weight:600}
 .modal-b{padding:12px 18px;overflow:auto;flex:1;min-height:120px}
 .modal-f{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;align-items:center}
 .xnote{background:var(--gray-bg);border-radius:10px;padding:9px 12px;font-size:12.5px;color:var(--muted);margin-bottom:10px}
-.xrow{display:flex;gap:12px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;text-align:left;background:none;border-left:0;border-right:0;border-top:0;border-radius:0}
+.xrow{display:flex;gap:12px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line)}
 .xrow:hover{background:var(--bg)}
 .xrow .t{flex:1;min-width:0;word-break:break-word}
 .xrow small{display:block;color:var(--muted);font-size:12px}
-.xrow.off .t{color:var(--muted)}
-.sw{width:44px;height:26px;border-radius:13px;background:var(--line);position:relative;flex:none;transition:.15s}
-.sw::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s}
-.sw.on{background:var(--bad)}.sw.on::after{left:21px}
-#xImp{display:none;width:100%;min-height:120px;margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.xsel{width:150px;flex:none;padding:6px 9px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);font-weight:600;cursor:pointer}
+.xsel.o0{border-color:var(--warn);color:var(--warn);background:var(--warn-bg)}
+.xsel.o1{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.xsel.o2{border-color:var(--teal);color:var(--teal);background:var(--teal-soft)}
+.xtools{display:grid;grid-template-columns:1fr 150px 200px;gap:8px}
+.xtools select{width:100%}
 
 /* hitung profit */
 .pf-top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
@@ -249,7 +250,7 @@ input[type=text].pf-in.w{width:100%;text-align:left}
 .pf-ids .tablewrap{border-radius:10px}
 
 @media (max-width:860px){
-  .drops,.f-row,.grid2{grid-template-columns:1fr}
+  .drops,.f-row,.grid2,.xtools{grid-template-columns:1fr}
   .cards{grid-template-columns:1fr 1fr}
   .rp-cals{grid-template-columns:1fr!important}
   .rp-cal{width:auto!important}
@@ -354,17 +355,12 @@ input[type=text].pf-in.w{width:100%;text-align:left}
   <div class="modal" role="dialog" aria-modal="true" aria-label="Produk dikecualikan">
     <div class="modal-h"><div><b>Pemilik produk: owner 1 atau owner 2</b><span id="xCnt"></span></div><button class="ib primary" id="xClose" data-tip="Simpan sebagai aturan tetap"><i data-ic="check"></i> Simpan</button></div>
     <div class="modal-b">
-      <div class="xnote">Sakelar <b>nyala = milik owner 1</b> (disembunyikan, tidak dihitung), sakelar mati = owner 2. Pilih mau melihat Owner 1 atau Owner 2 di bagian atas halaman. Pesanan produk itu disembunyikan dari semua tabel dan hitungan. Pesanan berisi beberapa produk baru disembunyikan kalau <b>semua</b> produknya dikecualikan. Klik <b>Simpan</b> supaya jadi aturan tetap: tersimpan ke spreadsheet dan sama di semua perangkat.</div>
-      <input type="text" id="xSearch" placeholder="Cari nama produk…">
+      <div class="xnote">Daftar ini dicatat dari file <b>Semua pesanan</b> yang sedang dimuat, jadi nama yang tidak ada di file tidak muncul. Pilih pemilik tiap produk lewat kolom pilihan di kanan. Pesanan milik owner lain disembunyikan dari semua tabel dan hitungan; pesanan berisi beberapa produk dianggap milik owner 1 hanya kalau <b>semua</b> produknya owner 1. Produk <b>Belum dipilih</b> sementara dihitung milik owner 2. Pilihan tersimpan ke spreadsheet saat kamu menekan <b>Simpan</b>.</div>
+      <div class="xtools"><input type="text" id="xSearch" placeholder="Cari nama produk…"><select id="xFilter"><option value="all">Semua</option><option value="0">Belum dipilih</option><option value="1">Owner 1</option><option value="2">Owner 2</option></select><select id="xBulk"><option value="">Set semua yang tampil…</option><option value="1">→ Owner 1</option><option value="2">→ Owner 2</option><option value="0">→ Belum dipilih</option></select></div>
       <div id="xList" style="margin-top:8px"></div>
-      <textarea id="xImp" placeholder="Tempel daftar nama produk, satu nama per baris. Daftar yang sekarang akan diganti."></textarea>
     </div>
     <div class="modal-f">
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="ib" id="xCopy" data-tip="Salin daftar produk dikecualikan"><i data-ic="copy"></i></button>
-        <button class="ib" id="xImport" data-tip="Impor daftar dari teks (menggantikan daftar sekarang)"><i data-ic="upload"></i></button>
-        <button class="ib" id="xDefault" data-tip="Kembalikan ke daftar awal"><i data-ic="reset"></i></button>
-      </div>
+      <button class="ib" id="xDefault" data-tip="Hapus semua pilihan owner, mulai dari awal"><i data-ic="reset"></i> Reset semua pilihan</button>
       <span id="xMsg" style="color:var(--muted);font-size:12.5px"></span>
     </div>
   </div>
@@ -375,74 +371,21 @@ input[type=text].pf-in.w{width:100%;text-align:left}
 /* ===== SAMBUNGAN GOOGLE SPREADSHEET (isi sekali di sini, tidak perlu isi di aplikasi) ===== */
 const GS_URL='https://script.google.com/macros/s/AKfycbzzvjd339dpa5SV9z8ogPFesf39k0zjvuHB4SwttKeKT1nNiWItA4O3qjRUaO50xo9fsA/exec';
 const GS_TOKEN='';   // isi sama dengan TOKEN di Code.gs kalau kamu pakai token
-/* ===== DAFTAR PRODUK YANG DIKECUALIKAN (tidak dibaca) =====
-   Mau tambah/hapus produk? Edit daftar ini, satu nama per baris.
-   Pencocokan tidak peduli huruf besar/kecil dan spasi ganda. */
-const EXCLUDED=[
-  "PAKET ASOY ISI 7 SPESIAL JAJAN LEBARAN",
-  "PAKET EKO ISI 6 spesial jajan lebaran",
-  "PAKET GOOD 5 PCS JAJAN ASUL-ASUL + BONUS TAS ESTETIK MURAH MERIAH",
-  "PAKET GOOD ISI 7 spesial jajan lebaran",
-  "PAKET HAPPY ISI 6 spesial jajan lebaran Snack Food Makanan Manis",
-  "PAKET JOS ISI 4 spesial jajan lebaran",
-  "PAKET JOSJIS 6 PCS JAJAN ASUL-ASUL + BONUS TAS ESTETIK MURAH MERIAH KADO",
-  "PAKET MANTAP 6 PCS JAJAN ASUL-ASUL + BONUS TAS ESTETIK MURAH MERIAH",
-  "PAKET NICE ISI 5 spesial jajan lebaran",
-  "PAKET NICE ISI 6 spesial jajan lebaran",
-  "PAKET NICE ISI 7 spesial jajan lebaran Food Snack Makanan Manis",
-  "PAKET OKE ISI 6 spesial jajan lebarann",
-  "PAKET SIAP ISI 7 spesial jajan lebaran",
-  "PAKET SIP ISI 5 spesial jajan lebaran",
-  "PAKET SIP ISI 6 spesial jajan lebaran Manis Cemilan",
-  "PAKET YES ISI 6 spesial jajan lebaran",
-  "PAKET YOI ISI 6 spesial jajan lebaran Manis Cemilan",
-  "PAKET PARCEL ISI 6 spesial jajan lebaran",
-  "PAKET REZA ISI 6 SPESIAL JAJAN LEBARAN",
-  "PAKET LOVE ISI 6 SPESIAL JAJAN LEBARAN",
-  "PAKET PREMIUM ISI 6 SPESIAL JAJAN LEBARAN",
-  "PAKET BEST ISI 6 BONUS KERANJANG SPESIAL JAJAN LEBARAN",
-  "PAKET ENDUL ISI 5 BONUS TAS SPESIAL JAJAN LEBARAN",
-  "PAKET SABENA ISI 6 SPESIAL JAJAN LEBARAN",
-  "PAKET MANTAP ISI 6 spesial jajan lebaran",
-  "PAKET ENAQ ISI 6 SPESIAL JAJAN LEBARAN",
-  "PAKET ELITE ISI 8 SPESIAL JAJAN LEBARAN",
-  "PAKET TAS ISI 6 spesial hampers lebaran",
-  "PAKET MANTUL ISI 6 SPESIAL JAJAN LEBARAN",
-  "LIVE PAKET MANTAP ISI 6 spesial jajan lebaran",
-  "PAKET KHONG GUAN ISI 8 SPESIAL JAJAN LEBARAN",
-  "PAKET YOI ISI 7 spesial jajan lebaran Manis Cemilan",
-  "JAJAN TOPLES LEBARAN SPESIAL CAMPUR Chocolate Food Snack Toples Makanan",
-  "PAKET ENDUL ISI 7 SPESIAL JAJAN LEBARAN",
-  "PAKET B ISI 6 SPESIAL JAJAN LEBARAN",
-  "PAKET GREAT ISI 7 SPESIAL JAJAN LEBARAN",
-  "PAKET GOOD ISI 6 SPESIAL JAJAN LEBARAN",
-  "PAKET A ISI 6 SPESIAL JAJAN LEBARAN",
-  "ROMANCE 700GR",
-  "PAKET C ISI 6 SPESIAL JAJAN LEBARAN",
-  "HOCKGUAN 1.350GR",
-  "PAKET A ISI 5 SPESIAL JAJAN LEBARAN",
-  "PAKET OKE ISI 7 SPESIAL JAJAN LEBARAN",
-  "PAKET C ISI 6 SPESIAL JAJAN LEBARAN KHONG GUAN",
-  "HOCK GUAN KALENG 1.350gr",
-  "HOCKGUAN 1.350GR JAJAN LEBARAN",
-  "PAKET K ISI 10 SPESIAL JAJAN LEBARAN",
-  "PAKET J ISI 10 SPESIAL JAJAN LEBARAN"
-];
+/* ===== PEMILIK PRODUK (owner 1 / owner 2) =====
+   Tidak ada daftar bawaan. Nama produk dicatat dari file Semua pesanan yang diupload atau dimuat,
+   lalu pemiliknya dipilih lewat tombol "Atur produk". */
 const normName=s=>String(s).replace(/\s+/g,' ').trim().toLowerCase();
-/* Daftar produk dikecualikan: disimpan di browser (localStorage) dan diatur lewat tombol "Atur produk dikecualikan".
-   Daftar EXCLUDED di atas hanya dipakai sebagai isi awal / saat "Kembalikan daftar awal". */
+/* Pilihan owner disimpan di browser (localStorage) dan di spreadsheet. exclMap = nama produk milik owner 1; lg.seen = nama yang sudah dipilih (owner 1 atau 2). */
 const EXKEY='rekapExcl';
 const exclMap=new Map();
-const EXVER=2;
+const EXVER=3;
 let viewOwner=(()=>{try{return localStorage.getItem('rekapOwner')==='1'?'1':'2'}catch(e){return '2'}})();
 const isO1=b=>!!(b&&b.length)&&b.every(x=>x[0]!=='('&&exclMap.has(normName(x)));
 const hideBy=b=>viewOwner==='1'?!isO1(b):isO1(b);   // nama ternormalisasi -> nama tampil
-function exclSeed(){exclMap.clear();EXCLUDED.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()))}
 function exclSave(){try{localStorage.setItem(EXKEY,JSON.stringify([...exclMap.values()]))}catch(e){}}
 (function(){
   let a=null;try{a=JSON.parse(localStorage.getItem(EXKEY)||'null')}catch(e){}
   if(Array.isArray(a)){exclMap.clear();a.forEach(n=>{const s=String(n).replace(/\s+/g,' ').trim();if(s)exclMap.set(normName(s),s)})}
-  else exclSeed();
 })();
 const state={income:null,orders:null,rows:[],filtered:[],sortKey:'tglBayar',sortDir:-1,page:1,perPage:100,tab:'detail',status:'Semua'};
 const $=id=>document.getElementById(id);
@@ -1227,26 +1170,40 @@ $('prodAll').addEventListener('click',()=>setVisible(true));
 $('prodNone').addEventListener('click',()=>setVisible(false));
 
 /* ---------- atur produk dikecualikan ---------- */
-const xs={rows:[],q:'',changed:false};
-function xBuild(){
+const xs={rows:[],q:'',f:'all',changed:false};
+const xOwn=k=>exclMap.has(k)?'1':lg.seen.has(k)?'2':'0';   // 1 = owner 1, 2 = owner 2, 0 = belum dipilih
+function xBuild(){   // daftar produk hanya dari nama di file Semua pesanan yang sedang dimuat
   const m=new Map();
-  const add=(n,c)=>{const k=normName(n);if(!k)return;const e=m.get(k);if(e)e.c+=c;else m.set(k,{n:String(n).replace(/\s+/g,' ').trim(),c})};
-  if(state.orders)for(const o of state.orders.values())new Set(o.bases.map(normName)).forEach(k=>{const b=o.bases.find(x=>normName(x)===k);add(b,1)});
-  for(const e of lg.ent.values())(e.b||[]).filter(b=>b[0]!=='(').forEach(b=>add(b,0));
-  for(const [k,n] of exclMap)if(!m.has(k))m.set(k,{n,c:0});
-  xs.rows=[...m.entries()].map(([k,v])=>({k,n:exclMap.get(k)||v.n,c:v.c})).sort((a,b)=>(exclMap.has(b.k)-exclMap.has(a.k))||(b.c-a.c)||a.n.localeCompare(b.n));
+  if(state.orders)for(const o of state.orders.values()){
+    const dup=new Set();
+    for(const b of (o.bases||[])){
+      const k=normName(b);if(!k||dup.has(k))continue;dup.add(k);
+      const e=m.get(k);if(e)e.c++;else m.set(k,{k,n:String(b).replace(/\s+/g,' ').trim(),c:1});
+    }
+  }
+  xs.rows=[...m.values()].sort((a,b)=>((xOwn(a.k)!=='0')-(xOwn(b.k)!=='0'))||(b.c-a.c)||a.n.localeCompare(b.n));
+}
+const xVisible=()=>{const q=xs.q.trim().toLowerCase();return xs.rows.filter(r=>(!q||r.n.toLowerCase().includes(q))&&(xs.f==='all'||xOwn(r.k)===xs.f))};
+function xCount(){
+  let a=0,b=0,c=0;xs.rows.forEach(r=>{const o=xOwn(r.k);if(o==='1')a++;else if(o==='2')b++;else c++});
+  $('xCnt').textContent=state.orders?(xs.rows.length+' produk di file · Owner 1: '+a+' · Owner 2: '+b+' · belum dipilih: '+c):'File Semua pesanan belum diupload, jadi belum ada nama produk yang bisa dipilih';
 }
 function xDraw(){
-  const q=xs.q.trim().toLowerCase();
-  const rows=xs.rows.filter(r=>!q||r.n.toLowerCase().includes(q));
-  $('xCnt').textContent=exclMap.size+' milik owner 1'+(state.orders?' · '+xs.rows.length+' produk di file':' · file Semua pesanan belum diupload');
-  $('xList').innerHTML=rows.map(r=>{const off=exclMap.has(r.k);return `<button type="button" class="xrow ${off?'off':''}" data-k="${esc(r.k)}"><span class="t">${esc(r.n)}<small>${state.orders&&r.c?r.c+' pesanan · ':''}${off?'owner 1':'owner 2'}${lg.seen.has(r.k)?'':' · BARU, belum ditentukan'}</small></span><span class="sw ${off?'on':''}"></span></button>`}).join('')||'<div class="empty">Tidak ada produk yang cocok.</div>';
+  const rows=xVisible();
+  $('xList').innerHTML=rows.map(r=>{const o=xOwn(r.k);return `<div class="xrow"><span class="t">${esc(r.n)}<small>${r.c} pesanan</small></span><select class="xsel o${o}" data-k="${esc(r.k)}"><option value="0"${o==='0'?' selected':''}>Belum dipilih</option><option value="1"${o==='1'?' selected':''}>Owner 1</option><option value="2"${o==='2'?' selected':''}>Owner 2</option></select></div>`}).join('')||'<div class="empty">'+(state.orders?'Tidak ada produk yang cocok.':'Upload file Semua pesanan dulu supaya nama produknya tercatat.')+'</div>';
+  xCount();
 }
-function xOpen(){xBuild();xs.q='';xs.changed=false;$('xSearch').value='';$('xImp').style.display='none';$('xMsg').textContent='';xDraw();$('xOv').classList.add('open')}
+function xSet(k,v){
+  const r=xs.rows.find(x=>x.k===k);
+  if(v==='1'){exclMap.set(k,r?r.n:k);lg.seen.add(k)}
+  else if(v==='2'){exclMap.delete(k);lg.seen.add(k)}
+  else{exclMap.delete(k);lg.seen.delete(k)}
+}
+function xOpen(){xBuild();xs.q='';xs.f='all';xs.changed=false;$('xSearch').value='';$('xFilter').value='all';$('xBulk').value='';$('xMsg').textContent='';xDraw();$('xOv').classList.add('open')}
 function xClose(){
   if(!$('xOv').classList.contains('open'))return;
   $('xOv').classList.remove('open');
-  xs.rows.forEach(r=>lg.seen.add(r.k));lgSave();lgPushMeta().then(()=>toast('Aturan owner tersimpan')).catch(()=>toast('Tersimpan di browser, belum ke spreadsheet'));
+  exclSave();lgSave();lgPushMeta().then(()=>toast('Aturan owner tersimpan')).catch(()=>toast('Tersimpan di browser, belum ke spreadsheet'));
   if(xs.changed&&(state.income||state.orders)){state.page=1;rebuild()}
   else if(xs.changed)$('exclInfo').textContent='';
   xs.changed=false;
@@ -1256,28 +1213,21 @@ $('xClose').addEventListener('click',xClose);
 $('xOv').addEventListener('click',e=>{if(e.target===$('xOv'))xClose()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')xClose()});
 $('xSearch').addEventListener('input',e=>{xs.q=e.target.value;xDraw()});
-$('xList').addEventListener('click',e=>{
-  const b=e.target.closest('[data-k]');if(!b)return;
-  const k=b.dataset.k,r=xs.rows.find(x=>x.k===k);if(!r)return;
-  if(exclMap.has(k))exclMap.delete(k);else exclMap.set(k,r.n);
-  exclSave();xs.changed=true;xDraw();
+$('xFilter').addEventListener('change',e=>{xs.f=e.target.value;xDraw()});
+$('xList').addEventListener('change',e=>{
+  const sel=e.target.closest('select[data-k]');if(!sel)return;
+  xSet(sel.dataset.k,sel.value);exclSave();lgSave();xs.changed=true;
+  sel.className='xsel o'+xOwn(sel.dataset.k);xCount();
 });
-$('xCopy').addEventListener('click',async()=>{
-  const t=[...exclMap.values()].join('\n');
-  try{await navigator.clipboard.writeText(t);$('xMsg').textContent='Tersalin ('+exclMap.size+' nama)'}
-  catch(e){$('xImp').style.display='block';$('xImp').value=t;$('xImp').select();$('xMsg').textContent='Salin manual dari kotak di atas'}
-});
-$('xImport').addEventListener('click',()=>{
-  const ta=$('xImp');
-  if(ta.style.display!=='block'){ta.style.display='block';ta.value='';ta.focus();$('xMsg').textContent='Tempel daftar, lalu tekan "Impor daftar" lagi';return}
-  const names=ta.value.split(/\r?\n/).map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean);
-  if(!names.length){ta.style.display='none';return}
-  exclMap.clear();names.forEach(n=>exclMap.set(normName(n),n));
-  exclSave();xs.changed=true;ta.style.display='none';xBuild();xDraw();$('xMsg').textContent='Diimpor: '+exclMap.size+' nama';
+$('xBulk').addEventListener('change',e=>{
+  const v=e.target.value;e.target.value='';if(v==='')return;
+  const rows=xVisible();if(!rows.length)return;
+  if(rows.length>1&&!confirm('Ubah '+rows.length+' produk yang sedang tampil menjadi "'+(v==='1'?'Owner 1':v==='2'?'Owner 2':'Belum dipilih')+'"?'))return;
+  rows.forEach(r=>xSet(r.k,v));exclSave();lgSave();xs.changed=true;xDraw();
 });
 $('xDefault').addEventListener('click',()=>{
-  if(!confirm('Kembalikan daftar ke isi awal ('+EXCLUDED.length+' produk)? Perubahan Anda akan hilang.'))return;
-  exclSeed();exclSave();xs.changed=true;xBuild();xDraw();
+  if(!confirm('Reset semua pilihan owner? Semua produk kembali menjadi "Belum dipilih" (sementara dihitung milik owner 2).'))return;
+  exclMap.clear();lg.seen=new Set();exclSave();lgSave();xs.changed=true;xBuild();xDraw();$('xMsg').textContent='Semua pilihan direset';
 });
 
 /* ---------- ekspor ---------- */
@@ -1351,7 +1301,16 @@ async function lgLoadRemote(){
     lg.tr=j.transfers.map(t=>({id:String(t[0]),tgl:String(t[1]),amt:Number(t[2])||0,ket:String(t[3]||''),o:String(t[4]||'2')}));
     lg.start=String(j.start||'');lgSave();
   }
-  if(j.prods&&Array.isArray(j.prods.o2)){exclMap.clear();j.prods.o2.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()));if((j.prods.v||0)<EXVER)EXCLUDED.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()));lg.seen=new Set(j.prods.seen||[]);exclSave();lgSave();if(state.income||state.orders)rebuild()}
+  if(j.prods&&Array.isArray(j.prods.o2)){
+    if((j.prods.v||0)<EXVER){   // daftar versi lama: dibuang, mulai dari nol
+      exclMap.clear();lg.seen=new Set();exclSave();lgSave();
+      try{await lgPushMeta()}catch(e){}
+    }else{
+      exclMap.clear();j.prods.o2.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()));
+      lg.seen=new Set(j.prods.seen||[]);exclSave();lgSave();
+    }
+    if(state.income||state.orders)rebuild();
+  }
   lg.msg='Tersambung ke spreadsheet ('+lg.ent.size+' transaksi dimuat)';
 }
 const lgReady=(async()=>{try{if(lgUrl())await lgLoadRemote()}catch(e){lg.msg='Spreadsheet belum tersambung: '+e.message}})();
@@ -1377,7 +1336,7 @@ function lgCalc(){
   const ok=t=>!lg.start||t>=lg.start,days=new Map();
   const g=t=>{let d=days.get(t);if(!d){d={t,in:0,neg:0,out:0,n:0};days.set(t,d)}return d};
   let kirim=0,nk=0;const unk={n:0,s:0};
-  for(const e of lg.ent.values()){if(ex(e)||!ok(e.tgl))continue;const d=g(e.tgl);d.n++;if((e.b||[]).some(x=>!lg.seen.has(normName(x)))){unk.n++;unk.s+=e.amt}if(e.amt>0){d.in+=e.amt;if(e.st==='Dikirim'){kirim+=e.amt;nk++}}else d.neg+=e.amt}
+  for(const e of lg.ent.values()){if(ex(e)||!ok(e.tgl))continue;const d=g(e.tgl);d.n++;if((e.b||[]).some(x=>x[0]!=='('&&!lg.seen.has(normName(x)))){unk.n++;unk.s+=e.amt}if(e.amt>0){d.in+=e.amt;if(e.st==='Dikirim'){kirim+=e.amt;nk++}}else d.neg+=e.amt}
   for(const t of lg.tr)if(ok(t.tgl)&&(t.o||'2')===viewOwner)g(t.tgl).out+=t.amt;
   const arr=[...days.values()].sort((a,b)=>a.t<b.t?-1:1);let run=0;
   for(const d of arr){run+=d.in+d.neg-d.out;d.run=run}
@@ -1414,7 +1373,7 @@ $('saldo').addEventListener('click',async e=>{
 function ownUI(){document.querySelectorAll('.ownb').forEach(b=>b.classList.toggle('on',b.dataset.own===viewOwner))}
 document.querySelectorAll('.ownb').forEach(b=>b.addEventListener('click',()=>{viewOwner=b.dataset.own;try{localStorage.setItem('rekapOwner',viewOwner)}catch(e){}ownUI();if(state.income||state.orders){state.page=1;rebuild()}else if(state.tab==='saldo')lgRender()}));
 ownUI();
-try{if(+localStorage.getItem('rekapExVer')!==EXVER){EXCLUDED.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()));exclSave();localStorage.setItem('rekapExVer',EXVER)}}catch(e){}
+try{if(+localStorage.getItem('rekapExVer')!==EXVER){exclMap.clear();lg.seen=new Set();exclSave();lgSave();localStorage.setItem('rekapExVer',EXVER)}}catch(e){}   // reset sekali: daftar owner lama dibuang
 const snap={timer:null,dirty:false};
 function snapMerge(a,b){return a?new Map([...a,...b]):b}
 async function gz(str){const w=new CompressionStream('gzip'),wr=w.writable.getWriter();wr.write(new TextEncoder().encode(str));wr.close();const b=new Uint8Array(await new Response(w.readable).arrayBuffer());let o='';for(let i=0;i<b.length;i+=32768)o+=String.fromCharCode.apply(null,b.subarray(i,i+32768));return btoa(o)}
