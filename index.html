@@ -833,7 +833,9 @@ function idsRow(g){
   return `<tr class="pf-ids"><td colspan="9"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><b>${rows.length} order</b><span class="muted">pada kelompok ini</span><span style="flex:1"></span><button type="button" class="ib" data-act="copyids" data-m="all" data-i="${i}" data-tip="Salin ID + uang cair + tanggal bayar (siap ditempel ke Excel)">${ic('clipboard')} ID + uang cair</button><button type="button" class="ib" data-act="copyids" data-m="id" data-i="${i}" data-tip="Salin order ID saja, satu per baris">${ic('copy')} ID saja</button></div><div class="tablewrap" style="max-height:320px;overflow:auto"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Uang cair','num')}${th('Ongkir','num')}${th('Komisi afiliasi','num')}${th('Tgl dibuat')}${th('Tgl bayar')}</tr></thead><tbody>${body}</tbody></table></div></td></tr>`;
 }
 function pfCalc(g){
-  const s=pfStore[g.key]||{},q=parseNum(s.q)||1,mo=parseNum(s.m)*q,op=parseNum(s.o)*q,ki=parseNum(s.k);   // modal & operasional ikut dikali qty, komisi investor tidak
+  const s=pfStore[g.key]||{};
+  if(!String(s.m==null?'':s.m).trim())return {mo:0,op:0,ki:0,per:0,tot:0,kosong:true};   // modal belum diisi: belum bersih, profit dianggap 0
+  const q=parseNum(s.q)||1,mo=parseNum(s.m)*q,op=parseNum(s.o)*q,ki=parseNum(s.k);   // modal & operasional ikut dikali qty, komisi investor tidak
   return {mo,op,ki,per:g.amt-mo-op-ki,tot:g.sum-(mo+op+ki)*g.n};
 }
 function updateProfit(){
@@ -850,7 +852,7 @@ function updateProfit(){
   const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
   set('pfTn',T.n);set('pfTc',rp(T.c));set('pfTm',rp(T.m));set('pfTo',rp(T.o));set('pfTk',rp(T.k));set('pfTp',rp(T.p));
   const gt=$('pfGrand');if(gt){gt.textContent=rp(T.p);gt.className=T.p<0?'neg':'pos'}
-  set('pfMiss',miss?(miss+' dari '+gs.length+' kelompok belum diisi modalnya, jadi profit totalnya belum akurat.'):'');
+  set('pfMiss',miss?(miss+' dari '+gs.length+' kelompok belum diisi modalnya, jadi profitnya dihitung Rp0 (belum bersih) dan tidak masuk total profit.'):'');
 }
 function renderProfit(){
   const gs=state.pfGroups=profitGroups();
@@ -860,7 +862,7 @@ function renderProfit(){
     else if(r.kel==='est'){nEst++;vEst+=r.bayar}
     else if(r.kel==='cair'&&r.adj){nAdj++;vAdj+=r.bayar}
   }
-  const help='Order dikelompokkan kalau nama barang dan uang cairnya sama. Isi modal, biaya operasional, dan komisi investor per paket. Kotak kecil ✕ di samping modal untuk qty: modal dan operasional dikali qty, komisi tidak dikali. Mengikuti filter pencarian, produk, dan tanggal (mengabaikan chip status). Isian tersimpan otomatis di browser ini.';
+  const help='Order dikelompokkan kalau nama barang dan uang cairnya sama. Isi modal, biaya operasional, dan komisi investor per paket. Kelompok yang modalnya masih kosong dihitung profit Rp0 sampai modal diisi. Kotak kecil ✕ di samping modal untuk qty: modal dan operasional dikali qty, komisi tidak dikali. Mengikuti filter pencarian, produk, dan tanggal (mengabaikan chip status). Isian tersimpan otomatis di browser ini.';
   const sb=(k,t,tip)=>`<button type="button" class="seg-b ${pfSort===k?'on':''}" data-pfsort="${k}" data-tip="${tip}">${t}</button>`;
   let h=`<div class="pf-top"><div class="pf-title"><b>Hitung profit</b><span class="muted">${esc(periodText())}</span> <i class="tipi" data-tip="${esc(help)}">${ic('info')}</i></div><div class="pf-tools">`+
     `<div class="seg">${sb('desc','Terbanyak','Urutkan dari total uang cair terbesar')}${sb('asc','Terendah','Urutkan dari total uang cair terkecil')}${sb('nama','A–Z','Urutkan berdasarkan nama')}</div>`+
