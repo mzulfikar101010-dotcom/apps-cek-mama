@@ -263,7 +263,7 @@ input[type=text].pf-in.w{width:100%;text-align:left}
 <body>
 <div class="wrap">
   <h1>Rekap Pesanan &amp; Pencairan</h1>
-  <p class="sub">Pilih owner, lalu upload file <b>Income</b> dan <b>Semua pesanan</b> kalau mau memperbarui data. Kalau tidak upload, aplikasi menampilkan data terakhir yang tersimpan di spreadsheet. Yang tersimpan hanya nomor pesanan, nama produk, status, dan nominal; nama dan alamat pembeli tidak ikut.</p>
+  <p class="sub">Pilih owner, lalu upload file <b>Income</b> dan <b>Semua pesanan</b>. Aplikasi tidak menyimpan apa pun: semua data hanya ada di halaman ini dan hilang kalau halaman ditutup atau di-refresh, jadi upload ulang setiap kali dibuka.</p>
 
   <div class="ownsw"><span>Lihat data milik:</span><button class="ownb" data-own="1">Owner 1</button><button class="ownb" data-own="2">Owner 2</button></div>
   <div class="drops">
@@ -356,7 +356,7 @@ input[type=text].pf-in.w{width:100%;text-align:left}
   <div class="modal" role="dialog" aria-modal="true" aria-label="Produk dikecualikan">
     <div class="modal-h"><div><b>Pemilik produk: owner 1 atau owner 2</b><span id="xCnt"></span></div><button class="ib primary" id="xClose" data-tip="Simpan sebagai aturan tetap"><i data-ic="check"></i> Simpan</button></div>
     <div class="modal-b">
-      <div class="xnote">Daftar ini dicatat dari file <b>Semua pesanan</b> yang sedang dimuat, jadi nama yang tidak ada di file tidak muncul. Pilih pemilik tiap produk lewat kolom pilihan di kanan. Pesanan milik owner lain disembunyikan dari semua tabel dan hitungan; pesanan berisi beberapa produk dianggap milik owner 1 hanya kalau <b>semua</b> produknya owner 1. Produk <b>Belum dipilih</b> sementara dihitung milik owner 2. Pilihan tersimpan ke spreadsheet saat kamu menekan <b>Simpan</b>.</div>
+      <div class="xnote">Daftar ini dicatat dari file <b>Semua pesanan</b> yang sedang dimuat, jadi nama yang tidak ada di file tidak muncul. Pilih pemilik tiap produk lewat kolom pilihan di kanan. Pesanan milik owner lain disembunyikan dari semua tabel dan hitungan; pesanan berisi beberapa produk dianggap milik owner 1 hanya kalau <b>semua</b> produknya owner 1. Produk <b>Belum dipilih</b> sementara dihitung milik owner 2. Pilihan hanya berlaku selama halaman ini terbuka.</div>
       <input type="text" id="xSearch" placeholder="Cari nama produk…"><div class="xtools2"><div class="chips" id="xFilter"><button type="button" class="chip on" data-f="all">Semua</button><button type="button" class="chip" data-f="0">Belum dipilih</button><button type="button" class="chip" data-f="1">Owner 1</button><button type="button" class="chip" data-f="2">Owner 2</button></div><span style="flex:1"></span><span class="muted" style="font-size:12px">Set semua yang tampil:</span><button type="button" class="ib" data-bulk="1">Owner 1</button><button type="button" class="ib" data-bulk="2">Owner 2</button></div>
       <div id="xList" style="margin-top:8px"></div>
     </div>
@@ -370,24 +370,18 @@ input[type=text].pf-in.w{width:100%;text-align:left}
 <script>
 "use strict";
 /* ===== SAMBUNGAN GOOGLE SPREADSHEET (isi sekali di sini, tidak perlu isi di aplikasi) ===== */
-const GS_URL='https://script.google.com/macros/s/AKfycbzzvjd339dpa5SV9z8ogPFesf39k0zjvuHB4SwttKeKT1nNiWItA4O3qjRUaO50xo9fsA/exec';
-const GS_TOKEN='';   // isi sama dengan TOKEN di Code.gs kalau kamu pakai token
 /* ===== PEMILIK PRODUK (owner 1 / owner 2) =====
    Tidak ada daftar bawaan. Nama produk dicatat dari file Semua pesanan yang diupload atau dimuat,
    lalu pemiliknya dipilih lewat tombol "Atur produk". */
 const normName=s=>String(s).replace(/\s+/g,' ').trim().toLowerCase();
-/* Pilihan owner disimpan di browser (localStorage) dan di spreadsheet. exclMap = nama produk milik owner 1; lg.seen = nama yang sudah dipilih (owner 1 atau 2). */
+/* Pilihan owner hanya di memori halaman (tidak disimpan). exclMap = nama produk milik owner 1; lg.seen = nama yang sudah dipilih (owner 1 atau 2). */
 const EXKEY='rekapExcl';
 const exclMap=new Map();
 const EXVER=3;
-let viewOwner=(()=>{try{return localStorage.getItem('rekapOwner')==='1'?'1':'2'}catch(e){return '2'}})();
+let viewOwner='2';
 const isO1=b=>!!(b&&b.length)&&b.every(x=>x[0]!=='('&&exclMap.has(normName(x)));
 const hideBy=b=>viewOwner==='1'?!isO1(b):isO1(b);   // nama ternormalisasi -> nama tampil
-function exclSave(){try{localStorage.setItem(EXKEY,JSON.stringify([...exclMap.values()]))}catch(e){}}
-(function(){
-  let a=null;try{a=JSON.parse(localStorage.getItem(EXKEY)||'null')}catch(e){}
-  if(Array.isArray(a)){exclMap.clear();a.forEach(n=>{const s=String(n).replace(/\s+/g,' ').trim();if(s)exclMap.set(normName(s),s)})}
-})();
+function exclSave(){}
 const state={income:null,orders:null,rows:[],filtered:[],sortKey:'tglBayar',sortDir:-1,page:1,perPage:100,tab:'detail',status:'Semua'};
 const $=id=>document.getElementById(id);
 const rp=n=>{n=Math.round(n||0);return (n<0?'-':'')+'Rp'+new Intl.NumberFormat('id-ID').format(Math.abs(n))};
@@ -524,7 +518,7 @@ function parseIncome(rows,h){
     if(o){o.pay+=pay;o.ong+=ong;o.aff+=aff}
     else map.set(id,{id,pay,ong,aff,jenis,rel:String(r[c['ID pesanan terkait']]??'').trim(),tglBuat:toIso(r[c['Waktu pemesanan']]),tglBayar:toIso(r[c['Waktu pembayaran pesanan']])});
   }
-  state.income=snapMerge(state.income,map);snap.dirty=true;
+  state.income=snapMerge(state.income,map);
 }
 function parseOrders(rows,h){
   const c=colIndex(rows[h]);const map=new Map();
@@ -544,7 +538,7 @@ function parseOrders(rows,h){
       map.set(id,{id,produk:nama,parts:[nama],bases:[base],status:st,tglBuat:toIso(r[c['Created Time']])});
     }
   }
-  state.orders=snapMerge(state.orders,map);snap.dirty=true;
+  state.orders=snapMerge(state.orders,map);
 }
 
 /* ---------- gabung data ---------- */
@@ -590,7 +584,7 @@ function rebuild(){
       rows.push(classify({id,produk:o.produk,status:o.status,bayar:0,tglBuat:o.tglBuat,tglBayar:'',inIncome:false,bases:o.bases,parts:o.parts},true));
     }
   }
-  if(inc)lgReady.then(()=>lgIngest(rows));
+  if(inc)lgIngest(rows);
   const showEx=$('fShowExcl').checked;
   const kept=showEx?rows:rows.filter(r=>!hideBy(r.bases));
   const hidden=rows.length-kept.length;
@@ -604,7 +598,6 @@ function rebuild(){
     const miss=rows.filter(r=>r.inIncome&&r.status==='Tidak ada di file pesanan').length;
     if(miss)notice(miss+' order di file income tidak ditemukan di file Semua pesanan (biasanya order lama di luar periode file pesanan).');
   }
-  if(snap.dirty){snap.dirty=false;clearTimeout(snap.timer);snap.timer=setTimeout(snapSave,2500)}
   state.page=1;applyFilters();
 }
 
@@ -786,8 +779,7 @@ const pfOpen=new Set();
    Pesanan dibuat SEBELUM tanggal batas -> kelompok sendiri; pada/sesudah tanggal batas -> kelompok sendiri. */
 const PFRULES='rekapProfitRules';
 let pfRules=[{name:'PAKET YES ISI 6 spesial jajan lebaran',date:'2026-10-21'}];
-try{const x=JSON.parse(localStorage.getItem(PFRULES)||'null');if(Array.isArray(x))pfRules=x}catch(e){}
-const pfRulesSave=()=>{try{localStorage.setItem(PFRULES,JSON.stringify(pfRules))}catch(e){}};
+const pfRulesSave=()=>{};
 function splitName(part,tgl){
   if(!tgl)return part;
   const n=normName(part);
@@ -800,9 +792,7 @@ function splitName(part,tgl){
   }
   return part;
 }
-try{const x=JSON.parse(localStorage.getItem(PFKEY)||'null');if(x&&typeof x==='object')pfStore=x}catch(e){}
-try{const v=localStorage.getItem(PFOPT);if(v!==null)pfIgnoreShip=v==='1'}catch(e){}
-const pfSave=()=>{try{localStorage.setItem(PFKEY,JSON.stringify(pfStore))}catch(e){}};
+const pfSave=()=>{};
 function parseNum(s){
   s=String(s==null?'':s).replace(/rp/ig,'').replace(/\s/g,'');
   if(!s)return 0;
@@ -842,23 +832,15 @@ function idsRow(g){
   const th=(t,c)=>`<th class="${c||''}" style="cursor:default">${t}</th>`;
   return `<tr class="pf-ids"><td colspan="9"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><b>${rows.length} order</b><span class="muted">pada kelompok ini</span><span style="flex:1"></span><button type="button" class="ib" data-act="copyids" data-m="all" data-i="${i}" data-tip="Salin ID + uang cair + tanggal bayar (siap ditempel ke Excel)">${ic('clipboard')} ID + uang cair</button><button type="button" class="ib" data-act="copyids" data-m="id" data-i="${i}" data-tip="Salin order ID saja, satu per baris">${ic('copy')} ID saja</button></div><div class="tablewrap" style="max-height:320px;overflow:auto"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Uang cair','num')}${th('Ongkir','num')}${th('Komisi afiliasi','num')}${th('Tgl dibuat')}${th('Tgl bayar')}</tr></thead><tbody>${body}</tbody></table></div></td></tr>`;
 }
-/* Isian per nama barang (kunci "nama\u0001*", dari file impor), berisi beberapa tingkat harga.
-   Dipakai untuk kolom yang belum diisi di kelompok itu: ambil tingkat dengan uang cair acuan terdekat, selisih maks 7%. */
-function pfGet(g){
-  const own=pfStore[g.key]||{},d=pfStore[g.name+'\u0001*'];
-  let best=null,diff=0.07;
-  for(const t of (d&&d.tiers)||[]){const x=Math.abs(g.amt-t.ref)/t.ref;if(x<=diff){best=t;diff=x}}
-  return best?Object.assign({},best,own):own;
-}
 function pfCalc(g){
-  const s=pfGet(g),q=parseNum(s.q)||1,mo=parseNum(s.m)*q,op=parseNum(s.o)*q,ki=parseNum(s.k);   // modal & operasional ikut dikali qty, komisi investor tidak
+  const s=pfStore[g.key]||{},q=parseNum(s.q)||1,mo=parseNum(s.m)*q,op=parseNum(s.o)*q,ki=parseNum(s.k);   // modal & operasional ikut dikali qty, komisi investor tidak
   return {mo,op,ki,per:g.amt-mo-op-ki,tot:g.sum-(mo+op+ki)*g.n};
 }
 function updateProfit(){
   const gs=state.pfGroups||[];
   const T={n:0,c:0,m:0,o:0,k:0,p:0};let miss=0;
   gs.forEach((g,i)=>{
-    const c=pfCalc(g),s=pfGet(g);
+    const c=pfCalc(g),s=pfStore[g.key]||{};
     T.n+=g.n;T.c+=g.sum;T.m+=c.mo*g.n;T.o+=c.op*g.n;T.k+=c.ki*g.n;T.p+=c.tot;
     if(!String(s.m||'').trim())miss++;
     const a=$('pfP'+i),b=$('pfT'+i);
@@ -897,7 +879,7 @@ function renderProfit(){
   const th=(t,tip,c)=>`<th class="${c||''}" data-tip="${esc(tip)}">${t}</th>`;
   h+=`<div class="tablewrap"><table class="pf-tbl" style="min-width:1100px"><thead><tr>${th('Nama kelompok','Nama barang. Kalau satu barang punya beberapa nominal, diberi (1), (2), dst.')}${th('Order','Jumlah order dalam kelompok ini','num')}${th('Cair / order','Rata-rata uang cair per order. Di bawahnya: kisaran terendah sampai tertinggi.','num')}${th('Total cair','Total uang cair semua order di kelompok ini','num')}${th('Modal × qty','Modal per paket. Kotak kecil = qty (kali berapa); qty mengalikan modal dan operasional. Kosong = 1.','num')}${th('Operasional','Biaya operasional per paket (ikut dikali qty)','num')}${th('Komisi investor','Komisi investor per paket (tidak dikali qty)','num')}${th('Profit / paket','Rata-rata profit per paket = uang cair − modal×qty − operasional×qty − komisi','num')}${th('Total profit','Profit per paket × jumlah order','num')}</tr></thead><tbody>`;
   gs.forEach((g,i)=>{
-    const s=pfGet(g);
+    const s=pfStore[g.key]||{};
     const multi=g.label!==g.name;
     const rng=Math.round(g.min)!==Math.round(g.max)?`<br><small class="zero">${rp(g.min)} – ${rp(g.max)}</small>`:'';
     h+=`<tr><td class="nm">${esc(g.label)}<div class="acts"><button type="button" class="ib sm ${pfOpen.has(g.key)?'on':''}" data-act="ids" data-i="${i}" data-tip="${esc(idTip(pfOpen.has(g.key),g.n))}">${ic('list')}</button>${multi?`<button type="button" class="ib sm" data-act="copy" data-i="${i}" data-tip="Salin modal, operasional, dan komisi ke semua nominal lain dari barang ini (qty tidak ikut)">${ic('copy')}</button>`:''}</div></td><td class="num">${g.n}</td><td class="num">${rp(g.amt)}${rng}</td><td class="num">${rp(g.sum)}</td>`+
@@ -934,7 +916,6 @@ $('profit').addEventListener('input',e=>{
 $('profit').addEventListener('change',e=>{
   if(e.target.id!=='pfShip')return;
   pfIgnoreShip=e.target.checked;
-  try{localStorage.setItem(PFOPT,pfIgnoreShip?'1':'0')}catch(x){}
   renderProfit();
 });
 $('profit').addEventListener('change',e=>{
@@ -948,7 +929,7 @@ $('profit').addEventListener('change',e=>{
       Object.assign(pfStore,d.isian);
       if(Array.isArray(d.aturanTanggal))pfRules=d.aturanTanggal;
       if(typeof d.abaikanOngkir==='boolean')pfIgnoreShip=d.abaikanOngkir;
-      pfSave();pfRulesSave();try{localStorage.setItem(PFOPT,pfIgnoreShip?'1':'0')}catch(x){}
+      pfSave();pfRulesSave();
       renderProfit();toast('Cadangan dimuat: '+Object.keys(d.isian).length+' isian kelompok');
     }catch(x){alert('File cadangan tidak valid.')}
   };
@@ -995,7 +976,7 @@ $('profit').addEventListener('click',e=>{
   const cp=e.target.closest('[data-act=copy]');
   if(cp){
     const gs=state.pfGroups||[],src=gs[+cp.dataset.i];if(!src)return;
-    const s=pfGet(src);
+    const s=pfStore[src.key]||{};
     gs.forEach((g,i)=>{
       if(g.name!==src.name)return;
       const t=pfStore[g.key]||(pfStore[g.key]={});t.m=s.m||'';t.o=s.o||'';t.k=s.k||'';
@@ -1212,8 +1193,7 @@ function xOpen(){xBuild();xs.q='';xs.f='all';xs.changed=false;$('xSearch').value
 function xClose(){
   if(!$('xOv').classList.contains('open'))return;
   $('xOv').classList.remove('open');
-  exclSave();lgSave();lgPushMeta().then(()=>toast('Aturan owner tersimpan')).catch(()=>toast('Tersimpan di browser, belum ke spreadsheet'));
-  if(xs.changed&&(state.income||state.orders)){state.page=1;rebuild()}
+    if(xs.changed&&(state.income||state.orders)){state.page=1;rebuild()}
   else if(xs.changed)$('exclInfo').textContent='';
   xs.changed=false;
 }
@@ -1229,7 +1209,7 @@ $('xFilter').addEventListener('click',e=>{
 $('xList').addEventListener('click',e=>{
   const b=e.target.closest('button[data-o]');if(!b)return;
   const row=b.closest('.xrow'),k=row.dataset.k;
-  xSet(k,b.dataset.o);exclSave();lgSave();xs.changed=true;
+  xSet(k,b.dataset.o);xs.changed=true;
   const o=xOwn(k);
   row.querySelectorAll('.xb').forEach(x=>x.className='xb'+(x.dataset.o===o?' on'+o:''));
   row.querySelector('.xun').textContent='';xCount();
@@ -1238,11 +1218,11 @@ document.querySelector('.xtools2').addEventListener('click',e=>{
   const b=e.target.closest('button[data-bulk]');if(!b)return;
   const v=b.dataset.bulk,rows=xVisible();if(!rows.length)return;
   if(rows.length>1&&!confirm('Ubah '+rows.length+' produk yang sedang tampil menjadi Owner '+v+'?'))return;
-  rows.forEach(r=>xSet(r.k,v));exclSave();lgSave();xs.changed=true;xDraw();
+  rows.forEach(r=>xSet(r.k,v));xs.changed=true;xDraw();
 });
 $('xDefault').addEventListener('click',()=>{
   if(!confirm('Reset semua pilihan owner? Semua produk kembali menjadi "Belum dipilih" (sementara dihitung milik owner 2).'))return;
-  exclMap.clear();lg.seen=new Set();exclSave();lgSave();xs.changed=true;xBuild();xDraw();$('xMsg').textContent='Semua pilihan direset';
+  exclMap.clear();lg.seen=new Set();xs.changed=true;xBuild();xDraw();$('xMsg').textContent='Semua pilihan direset';
 });
 
 /* ---------- ekspor ---------- */
@@ -1293,43 +1273,10 @@ $('btnExcel').addEventListener('click',()=>{
 /* ===== SALDO ===== */
 /* Buku saldo. Satu catatan = satu kejadian uang (Order ID + tanggal pembayaran) dengan nominalnya.
    Upload ulang file yang sama tidak menggandakan apa pun. Nominal positif masuk saldo, nominal negatif (pengembalian) mengurangi saldo,
-   transfer yang kamu catat juga mengurangi saldo. Disimpan di browser dan disalin ke Google Spreadsheet lewat Apps Script. */
+   transfer yang kamu catat juga mengurangi saldo. Hanya di memori halaman, tidak disimpan. */
 const LGKEY='rekapLedger';
 const lg={ent:new Map(),tr:[],start:'',msg:'',last:null,seen:new Set(),file:null};
-try{const x=JSON.parse(localStorage.getItem(LGKEY)||'null');if(x){lg.ent=new Map(x.e.map(e=>[e.k,e]));lg.tr=x.t||[];lg.start=x.s||'';lg.seen=new Set(x.p||[])}}catch(e){}
-const lgSave=()=>{try{localStorage.setItem(LGKEY,JSON.stringify({e:[...lg.ent.values()],t:lg.tr,s:lg.start,p:[...lg.seen]}))}catch(e){}};
-const lgUrl=()=>GS_URL.trim();
-async function lgPost(body){
-  const u=lgUrl();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(u))throw new Error('GS_URL di index.html belum diisi');
-  const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({token:GS_TOKEN},body))});
-  const j=await r.json();if(!j.ok)throw new Error(j.error||'gagal');return j;
-}
-async function lgPush(list){
-  const rowOf=e=>[e.k,e.id,e.tgl,e.amt,e.p,e.st,JSON.stringify(e.b||[]),e.up];
-  for(let i=0;i<list.length;i+=2000)await lgPost({action:'ledger_upsert',rows:list.slice(i,i+2000).map(rowOf)});
-}
-const lgPushMeta=()=>lgPost({action:'meta_save',transfers:lg.tr,start:lg.start,prods:{o2:[...exclMap.values()],seen:[...lg.seen],v:EXVER}});
-async function lgLoadRemote(){
-  const j=await lgPost({action:'ledger_load'});
-  if(j.rows.length||j.transfers.length){
-    lg.ent=new Map(j.rows.map(r=>{const e={k:String(r[0]),id:String(r[1]),tgl:String(r[2]),amt:Number(r[3])||0,p:String(r[4]||''),st:String(r[5]||''),up:String(r[7]||'')};try{e.b=JSON.parse(r[6]||'[]')}catch(x){e.b=[]}return [e.k,e]}));
-    lg.tr=j.transfers.map(t=>({id:String(t[0]),tgl:String(t[1]),amt:Number(t[2])||0,ket:String(t[3]||''),o:String(t[4]||'2')}));
-    lg.start=String(j.start||'');lgSave();
-  }
-  if(j.prods&&Array.isArray(j.prods.o2)){
-    if((j.prods.v||0)<EXVER){   // daftar versi lama: dibuang, mulai dari nol
-      exclMap.clear();lg.seen=new Set();exclSave();lgSave();
-      try{await lgPushMeta()}catch(e){}
-    }else{
-      exclMap.clear();j.prods.o2.forEach(n=>exclMap.set(normName(n),String(n).replace(/\s+/g,' ').trim()));
-      lg.seen=new Set(j.prods.seen||[]);exclSave();lgSave();
-    }
-    if(state.income||state.orders)rebuild();
-  }
-  lg.msg='Tersambung ke spreadsheet ('+lg.ent.size+' transaksi dimuat)';
-}
-const lgReady=(async()=>{try{if(lgUrl())await lgLoadRemote()}catch(e){lg.msg='Spreadsheet belum tersambung: '+e.message}})();
-async function lgIngest(rows){
+function lgIngest(rows){
   const hasOrd=!!state.orders,changed=[];let nNew=0,nUpd=0;const up=isoOf(new Date());
   for(const r of rows){
     if(!r.inIncome||!r.bayar||!r.tglBayar)continue;
@@ -1339,9 +1286,6 @@ async function lgIngest(rows){
   }
   lg.last={nNew,nUpd,at:new Date().toLocaleString('id-ID')};
   if(changed.length){
-    lgSave();
-    if(lgUrl()){try{await lgPush(changed);lg.msg='Tersimpan ke spreadsheet ('+changed.length+' transaksi dikirim)'}catch(e){lg.msg='Gagal simpan ke spreadsheet: '+e.message}}
-    else lg.msg='Tersimpan di browser saja (URL Apps Script belum diisi)';
     toast('Saldo: '+nNew+' transaksi baru'+(nUpd?', '+nUpd+' berubah':''));
   }
   if(state.tab==='saldo')lgRender();
@@ -1365,54 +1309,27 @@ function lgRender(){
   h+=`<div class="rnote">Uang masuk sudah termasuk ${rp(c.kirim)} dari ${c.nk} pesanan yang statusnya masih Dikirim. ${lg.last?'Upload terakhir: '+esc(lg.last.at)+' ('+lg.last.nNew+' transaksi baru, '+lg.last.nUpd+' berubah).':'Upload file income + Semua pesanan untuk menambah data.'}</div>`;
   h+=`<div class="panel"><b>Catat transfer</b><div class="grid2" style="grid-template-columns:1fr 1fr 2fr auto auto"><div><label>Tanggal</label><input type="date" id="trT" value="${isoOf(new Date())}"></div><div><label>Nominal (Rp)</label><input type="text" id="trA" placeholder="${N(Math.max(0,Math.round(c.saldo)))}"></div><div><label>Catatan</label><input type="text" id="trN" placeholder="mis. transfer ke owner B"></div><button class="btn primary" data-act="addtr">Catat</button><button class="btn" data-act="fulltr" data-tip="Isi nominal sebesar seluruh saldo">Isi = saldo</button></div>`;
   if(lg.tr.some(t=>(t.o||'2')===viewOwner))h+=`<div class="tablewrap" style="margin-top:10px"><table><thead><tr><th style="cursor:default">Tanggal</th><th class="num" style="cursor:default">Nominal</th><th style="cursor:default">Catatan</th><th></th></tr></thead><tbody>${lg.tr.map((t,i)=>({t,i})).filter(({t})=>(t.o||'2')===viewOwner).sort((a,b)=>a.t.tgl<b.t.tgl?1:-1).map(({t,i})=>`<tr><td>${showDate(t.tgl)}</td><td class="num">${rp(t.amt)}</td><td>${esc(t.ket)}</td><td><button class="ib" data-act="deltr" data-i="${i}" data-tip="Hapus catatan ini">${ic('x')}</button></td></tr>`).join('')}</tbody></table></div>`;
-  h+=`</div><div class="panel"><div class="grid2" style="grid-template-columns:1fr auto auto"><div><label>Saldo mulai dihitung dari tanggal bayar (kosong = semua data)</label><input type="date" id="lgStart" value="${esc(lg.start)}"></div><button class="btn" data-act="pull">Muat dari spreadsheet</button><button class="btn" data-act="push">Simpan semua ke spreadsheet</button></div><div class="hint">${esc(lg.msg||'Belum tersambung ke spreadsheet.')} Transfer yang tanggalnya sebelum tanggal mulai tidak ikut dihitung.</div></div>`;
+  h+=`</div><div class="panel"><div class="grid2" style="grid-template-columns:1fr"><div><label>Saldo mulai dihitung dari tanggal bayar (kosong = semua data)</label><input type="date" id="lgStart" value="${esc(lg.start)}"></div></div><div class="hint">Transfer yang tanggalnya sebelum tanggal mulai tidak ikut dihitung.</div></div>`;
   h+=`<div class="tablewrap"><table><thead><tr><th style="cursor:default">Tanggal bayar</th><th class="num" style="cursor:default">Transaksi</th><th class="num" style="cursor:default">Masuk</th><th class="num" style="cursor:default">Pengembalian</th><th class="num" style="cursor:default">Transfer</th><th class="num" style="cursor:default">Saldo berjalan</th></tr></thead><tbody>${c.arr.map(d=>`<tr><td>${showDate(d.t)}</td><td class="num">${d.n}</td><td class="num">${d.in?rp(d.in):'-'}</td><td class="num neg">${d.neg?rp(d.neg):'-'}</td><td class="num">${d.out?rp(-d.out):'-'}</td><td class="num"><b>${rp(d.run)}</b></td></tr>`).join('')||'<tr><td colspan="6" class="empty">Belum ada data. Upload file income dan Semua pesanan.</td></tr>'}</tbody></table></div>`;
   $('saldo').innerHTML=h;
 }
-$('saldo').addEventListener('change',e=>{if(e.target.id==='lgStart'){lg.start=e.target.value;lgSave();lgRender();lgPushMeta().catch(()=>{})}});
-$('saldo').addEventListener('click',async e=>{
+$('saldo').addEventListener('change',e=>{if(e.target.id==='lgStart'){lg.start=e.target.value;lgRender()}});
+$('saldo').addEventListener('click',e=>{
   const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act;
   if(a==='fulltr'){$('trA').value=Math.max(0,Math.round(lgCalc().saldo))}
   else if(a==='openprod')xOpen();
   else if(a==='addtr'){
     const t=$('trT').value,v=parseNum($('trA').value);if(!t||!(v>0)){toast('Isi tanggal dan nominal');return}
-    lg.tr.push({id:'T'+Date.now(),tgl:t,amt:v,ket:$('trN').value.trim(),o:viewOwner});lgSave();lgRender();
-    try{await lgPushMeta()}catch(x){lg.msg='Transfer tersimpan di browser, gagal ke spreadsheet: '+x.message;lgRender()}
+    lg.tr.push({id:'T'+Date.now(),tgl:t,amt:v,ket:$('trN').value.trim(),o:viewOwner});lgRender();
   }
-  else if(a==='deltr'){lg.tr.splice(+b.dataset.i,1);lgSave();lgRender();lgPushMeta().catch(()=>{})}
-  else if(a==='pull'){try{lg.msg='Memuat…';lgRender();await lgLoadRemote()}catch(x){lg.msg='Gagal memuat: '+x.message}lgRender()}
-  else if(a==='push'){try{lg.msg='Menyimpan…';lgRender();await lgPush([...lg.ent.values()]);await lgPushMeta();lg.msg='Semua data tersimpan ke spreadsheet ('+lg.ent.size+' transaksi)'}catch(x){lg.msg='Gagal menyimpan: '+x.message}lgRender()}
+  else if(a==='deltr'){lg.tr.splice(+b.dataset.i,1);lgRender()}
 });
 /* ===== END SALDO ===== */
-/* ===== PEMILIH OWNER + DATA TERSIMPAN DI SPREADSHEET ===== */
+/* ===== PEMILIH OWNER ===== */
 function ownUI(){document.querySelectorAll('.ownb').forEach(b=>b.classList.toggle('on',b.dataset.own===viewOwner))}
-document.querySelectorAll('.ownb').forEach(b=>b.addEventListener('click',()=>{viewOwner=b.dataset.own;try{localStorage.setItem('rekapOwner',viewOwner)}catch(e){}ownUI();if(state.income||state.orders){state.page=1;rebuild()}else if(state.tab==='saldo')lgRender()}));
+document.querySelectorAll('.ownb').forEach(b=>b.addEventListener('click',()=>{viewOwner=b.dataset.own;ownUI();if(state.income||state.orders){state.page=1;rebuild()}else if(state.tab==='saldo')lgRender()}));
 ownUI();
-try{if(+localStorage.getItem('rekapExVer')!==EXVER){exclMap.clear();lg.seen=new Set();exclSave();lgSave();localStorage.setItem('rekapExVer',EXVER)}}catch(e){}   // reset sekali: daftar owner lama dibuang
-const snap={timer:null,dirty:false};
 function snapMerge(a,b){return a?new Map([...a,...b]):b}
-async function gz(str){const w=new CompressionStream('gzip'),wr=w.writable.getWriter();wr.write(new TextEncoder().encode(str));wr.close();const b=new Uint8Array(await new Response(w.readable).arrayBuffer());let o='';for(let i=0;i<b.length;i+=32768)o+=String.fromCharCode.apply(null,b.subarray(i,i+32768));return btoa(o)}
-async function gunz(b64){const b=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)),d=new DecompressionStream('gzip'),wr=d.writable.getWriter();wr.write(b);wr.close();return new TextDecoder().decode(await new Response(d.readable).arrayBuffer())}
-async function snapSave(){
-  try{
-    await lgReady;if(!lgUrl()||(!state.income&&!state.orders))return;
-    const b=await gz(JSON.stringify({at:new Date().toLocaleString('id-ID'),i:state.income?[...state.income.values()]:[],o:state.orders?[...state.orders.values()]:[]}));
-    const ch=[];for(let i=0;i<b.length;i+=45000)ch.push(b.slice(i,i+45000));
-    await lgPost({action:'snap_save',chunks:ch});lg.msg='Data pesanan tersimpan ke spreadsheet ('+Math.round(b.length/1024)+' KB)';toast('Data tersimpan ke spreadsheet');
-  }catch(e){lg.msg='Gagal menyimpan data ke spreadsheet: '+e.message;toast('Gagal simpan ke spreadsheet')}
-  if(state.tab==='saldo')lgRender();
-}
-async function snapLoad(){
-  try{
-    if(!lgUrl())return;
-    const j=await lgPost({action:'snap_load'});if(!j.chunks.length)return;
-    const d=JSON.parse(await gunz(j.chunks.join('')));
-    if(d.i.length){const m=new Map(d.i.map(x=>[x.id,x]));state.income=state.income?new Map([...m,...state.income]):m;setName('Income','dimuat dari spreadsheet')}
-    if(d.o.length){const m=new Map(d.o.map(x=>[x.id,x]));state.orders=state.orders?new Map([...m,...state.orders]):m;setName('Orders','dimuat dari spreadsheet')}
-    rebuild();notice('Data dimuat dari spreadsheet (terakhir diperbarui '+d.at+'). Upload file baru untuk memperbarui.');
-  }catch(e){lg.msg='Gagal memuat data pesanan: '+e.message}
-}
-lgReady.then(snapLoad);
 
 </script>
 </body>
