@@ -842,15 +842,23 @@ function idsRow(g){
   const th=(t,c)=>`<th class="${c||''}" style="cursor:default">${t}</th>`;
   return `<tr class="pf-ids"><td colspan="9"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><b>${rows.length} order</b><span class="muted">pada kelompok ini</span><span style="flex:1"></span><button type="button" class="ib" data-act="copyids" data-m="all" data-i="${i}" data-tip="Salin ID + uang cair + tanggal bayar (siap ditempel ke Excel)">${ic('clipboard')} ID + uang cair</button><button type="button" class="ib" data-act="copyids" data-m="id" data-i="${i}" data-tip="Salin order ID saja, satu per baris">${ic('copy')} ID saja</button></div><div class="tablewrap" style="max-height:320px;overflow:auto"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Uang cair','num')}${th('Ongkir','num')}${th('Komisi afiliasi','num')}${th('Tgl dibuat')}${th('Tgl bayar')}</tr></thead><tbody>${body}</tbody></table></div></td></tr>`;
 }
+/* Isian per nama barang (kunci "nama\u0001*", dari file impor), berisi beberapa tingkat harga.
+   Dipakai untuk kolom yang belum diisi di kelompok itu: ambil tingkat dengan uang cair acuan terdekat, selisih maks 7%. */
+function pfGet(g){
+  const own=pfStore[g.key]||{},d=pfStore[g.name+'\u0001*'];
+  let best=null,diff=0.07;
+  for(const t of (d&&d.tiers)||[]){const x=Math.abs(g.amt-t.ref)/t.ref;if(x<=diff){best=t;diff=x}}
+  return best?Object.assign({},best,own):own;
+}
 function pfCalc(g){
-  const s=pfStore[g.key]||{},q=parseNum(s.q)||1,mo=parseNum(s.m)*q,op=parseNum(s.o)*q,ki=parseNum(s.k);   // modal & operasional ikut dikali qty, komisi investor tidak
+  const s=pfGet(g),q=parseNum(s.q)||1,mo=parseNum(s.m)*q,op=parseNum(s.o)*q,ki=parseNum(s.k);   // modal & operasional ikut dikali qty, komisi investor tidak
   return {mo,op,ki,per:g.amt-mo-op-ki,tot:g.sum-(mo+op+ki)*g.n};
 }
 function updateProfit(){
   const gs=state.pfGroups||[];
   const T={n:0,c:0,m:0,o:0,k:0,p:0};let miss=0;
   gs.forEach((g,i)=>{
-    const c=pfCalc(g),s=pfStore[g.key]||{};
+    const c=pfCalc(g),s=pfGet(g);
     T.n+=g.n;T.c+=g.sum;T.m+=c.mo*g.n;T.o+=c.op*g.n;T.k+=c.ki*g.n;T.p+=c.tot;
     if(!String(s.m||'').trim())miss++;
     const a=$('pfP'+i),b=$('pfT'+i);
@@ -889,7 +897,7 @@ function renderProfit(){
   const th=(t,tip,c)=>`<th class="${c||''}" data-tip="${esc(tip)}">${t}</th>`;
   h+=`<div class="tablewrap"><table class="pf-tbl" style="min-width:1100px"><thead><tr>${th('Nama kelompok','Nama barang. Kalau satu barang punya beberapa nominal, diberi (1), (2), dst.')}${th('Order','Jumlah order dalam kelompok ini','num')}${th('Cair / order','Rata-rata uang cair per order. Di bawahnya: kisaran terendah sampai tertinggi.','num')}${th('Total cair','Total uang cair semua order di kelompok ini','num')}${th('Modal × qty','Modal per paket. Kotak kecil = qty (kali berapa); qty mengalikan modal dan operasional. Kosong = 1.','num')}${th('Operasional','Biaya operasional per paket (ikut dikali qty)','num')}${th('Komisi investor','Komisi investor per paket (tidak dikali qty)','num')}${th('Profit / paket','Rata-rata profit per paket = uang cair − modal×qty − operasional×qty − komisi','num')}${th('Total profit','Profit per paket × jumlah order','num')}</tr></thead><tbody>`;
   gs.forEach((g,i)=>{
-    const s=pfStore[g.key]||{};
+    const s=pfGet(g);
     const multi=g.label!==g.name;
     const rng=Math.round(g.min)!==Math.round(g.max)?`<br><small class="zero">${rp(g.min)} – ${rp(g.max)}</small>`:'';
     h+=`<tr><td class="nm">${esc(g.label)}<div class="acts"><button type="button" class="ib sm ${pfOpen.has(g.key)?'on':''}" data-act="ids" data-i="${i}" data-tip="${esc(idTip(pfOpen.has(g.key),g.n))}">${ic('list')}</button>${multi?`<button type="button" class="ib sm" data-act="copy" data-i="${i}" data-tip="Salin modal, operasional, dan komisi ke semua nominal lain dari barang ini (qty tidak ikut)">${ic('copy')}</button>`:''}</div></td><td class="num">${g.n}</td><td class="num">${rp(g.amt)}${rng}</td><td class="num">${rp(g.sum)}</td>`+
@@ -987,7 +995,7 @@ $('profit').addEventListener('click',e=>{
   const cp=e.target.closest('[data-act=copy]');
   if(cp){
     const gs=state.pfGroups||[],src=gs[+cp.dataset.i];if(!src)return;
-    const s=pfStore[src.key]||{};
+    const s=pfGet(src);
     gs.forEach((g,i)=>{
       if(g.name!==src.name)return;
       const t=pfStore[g.key]||(pfStore[g.key]={});t.m=s.m||'';t.o=s.o||'';t.k=s.k||'';
