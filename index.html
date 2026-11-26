@@ -249,6 +249,20 @@ input[type=text].pf-in.w{width:100%;text-align:left}
 .pf-grand strong{font-size:26px;letter-spacing:-.01em}
 .pf-ids>td{background:var(--bg)}
 .pf-ids .tablewrap{border-radius:10px}
+:root{--mud-bg:#ecd2cd;--mud-line:#b98279;--mud-text:#4a1f1a;--mud-ph:#9a6a63}
+@media (prefers-color-scheme:dark){:root{--mud-bg:#4a2a2a;--mud-line:#7d4a4a;--mud-text:#f1d6d2;--mud-ph:#a98580}}
+.pf-in.pf-m{background:var(--mud-bg);border-color:var(--mud-line);color:var(--mud-text)}
+.pf-in.pf-m::placeholder{color:var(--mud-ph)}
+.pf-in.pf-m:focus{outline-color:var(--mud-line)}
+.pf-negbox{margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.pf-flt.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.pf-flt b{background:var(--gray-bg);color:var(--text);border-radius:10px;padding:0 7px;font-size:12px;margin-left:6px}
+.pf-flt.on b{background:var(--accent);color:#fff}
+.pf-th{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
+.pf-sorts{display:inline-flex;flex-direction:column;gap:1px}
+.pf-sorts button{border:0;background:none;padding:0 4px;line-height:1.15;font-size:9px;cursor:pointer;color:var(--muted);border-radius:3px}
+.pf-sorts button:hover{color:var(--text)}
+.pf-sorts button.on{color:var(--accent);background:var(--accent-soft)}
 
 @media (max-width:860px){
   .drops,.f-row,.grid2,.xtools{grid-template-columns:1fr}
@@ -773,7 +787,7 @@ function renderReport(){
    Komisi Afiliasi (supaya selisih kecil tidak memecah kelompok), tapi TOTAL uang cair tetap angka asli.
    Order berisi beberapa barang digabung jadi satu nama "A + B" (urutan nama disortir supaya konsisten). */
 const PFKEY='rekapProfit',PFOPT='rekapProfitOpt';
-let pfStore={},pfIgnoreShip=true,pfSort='nama',pfRulesOpen=false;
+let pfNegOpen=false,pfStore={},pfSortKey='',pfSortDir=-1,pfOnlyEmpty=false,pfRulesOpen=false;   // pfSortDir: -1 = tertinggi dulu, 1 = terendah dulu
 const pfOpen=new Set();
 /* Aturan pisah produk berdasarkan tanggal pembuatan pesanan (untuk produk yang isinya diganti tanpa ganti nama).
    Pesanan dibuat SEBELUM tanggal batas -> kelompok sendiri; pada/sesudah tanggal batas -> kelompok sendiri. */
@@ -807,7 +821,7 @@ function profitGroups(){
   for(const r of (state.base||[])){
     if(r.kel!=='cair'||r.adj)continue;
     const name=(r.parts&&r.parts.length?r.parts.map(x=>splitName(x,r.tglBuat)).sort((a,b)=>a<b?-1:a>b?1:0).join(' + '):splitName(r.produk,r.tglBuat));
-    const norm=Math.round((r.bayar-(pfIgnoreShip?(r.ong||0)+(r.aff||0):0))*100)/100;
+    const norm=Math.round((r.bayar-((r.ong||0)+(r.aff||0)))*100)/100;
     const key=name+'\u0001'+norm;
     let g=m.get(key);if(!g){g={name,norm,key,n:0,sum:0,ids:[],rows:[],min:Infinity,max:-Infinity};m.set(key,g)}
     g.n++;g.ids.push(r.id);g.rows.push({id:r.id,bayar:r.bayar,ong:r.ong||0,aff:r.aff||0,tb:r.tglBuat,tp:r.tglBayar});g.sum+=r.bayar;if(r.bayar<g.min)g.min=r.bayar;if(r.bayar>g.max)g.max=r.bayar;
@@ -819,18 +833,24 @@ function profitGroups(){
     list.forEach((g,i)=>{g.label=list.length>1?g.name+' ('+(i+1)+')':g.name});
   }
   const byNm=(a,b)=>(a.name<b.name?-1:a.name>b.name?1:0)||a.norm-b.norm;
-  if(pfSort==='desc')arr.sort((a,b)=>b.sum-a.sum||byNm(a,b));
-  else if(pfSort==='asc')arr.sort((a,b)=>a.sum-b.sum||byNm(a,b));
+  const val={n:g=>g.n,sum:g=>g.sum,per:g=>pfCalc(g).per,tot:g=>pfCalc(g).tot};
+  if(pfSortKey&&val[pfSortKey]){const f=val[pfSortKey];arr.sort((a,b)=>(f(a)-f(b))*pfSortDir||byNm(a,b))}
   else arr.sort(byNm);
   return arr;
+}
+const pfNegList=()=>(state.base||[]).filter(r=>r.kel==='neg').slice().sort((a,b)=>a.bayar-b.bayar);
+function negBox(){
+  const l=pfNegList();
+  const th=(t,c)=>`<th class="${c||''}" style="cursor:default">${t}</th>`;
+  const body=l.map(r=>`<tr><td class="id">${esc(r.id)}<button type="button" class="ib sm" style="margin-left:8px;vertical-align:middle" data-act="copyone" data-id="${esc(r.id)}" data-tip="Salin order ID">${ic('copy')}</button></td><td class="num neg">${rp(r.bayar)}</td><td>${showDate(r.tglBayar)||'-'}</td><td>${esc(r.produk)}</td></tr>`).join('');
+  return `<div class="pf-ids pf-negbox"><div style="margin-bottom:8px"><b>${l.length} order</b> <span class="muted">potongan negatif, urut dari yang terbesar</span></div><div class="tablewrap" style="max-height:360px;overflow:auto"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Potongan','num')}${th('Tgl bayar')}${th('Produk')}</tr></thead><tbody>${body}</tbody></table></div></div>`;
 }
 const idTip=(open,n)=>open?'Sembunyikan daftar order':'Lihat '+n+' order ID beserta uang cairnya';
 function idsRow(g){
   const rows=g.rows.slice().sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
-  const i=(state.pfGroups||[]).indexOf(g);
-  const body=rows.map(r=>`<tr><td class="id">${esc(r.id)}</td><td class="num">${rp(r.bayar)}</td><td class="num">${r.ong?rp(r.ong):'-'}</td><td class="num">${r.aff?rp(r.aff):'-'}</td><td>${showDate(r.tb)||'-'}</td><td>${showDate(r.tp)||'-'}</td></tr>`).join('');
+  const body=rows.map(r=>`<tr><td class="id">${esc(r.id)}<button type="button" class="ib sm" style="margin-left:8px;vertical-align:middle" data-act="copyone" data-id="${esc(r.id)}" data-tip="Salin order ID">${ic('copy')}</button></td><td class="num">${rp(r.bayar)}</td><td class="num">${r.ong?rp(r.ong):'-'}</td><td class="num">${r.aff?rp(r.aff):'-'}</td><td>${showDate(r.tb)||'-'}</td><td>${showDate(r.tp)||'-'}</td></tr>`).join('');
   const th=(t,c)=>`<th class="${c||''}" style="cursor:default">${t}</th>`;
-  return `<tr class="pf-ids"><td colspan="9"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><b>${rows.length} order</b><span class="muted">pada kelompok ini</span><span style="flex:1"></span><button type="button" class="ib" data-act="copyids" data-m="all" data-i="${i}" data-tip="Salin ID + uang cair + tanggal bayar (siap ditempel ke Excel)">${ic('clipboard')} ID + uang cair</button><button type="button" class="ib" data-act="copyids" data-m="id" data-i="${i}" data-tip="Salin order ID saja, satu per baris">${ic('copy')} ID saja</button></div><div class="tablewrap" style="max-height:320px;overflow:auto"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Uang cair','num')}${th('Ongkir','num')}${th('Komisi afiliasi','num')}${th('Tgl dibuat')}${th('Tgl bayar')}</tr></thead><tbody>${body}</tbody></table></div></td></tr>`;
+  return `<tr class="pf-ids"><td colspan="9"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><b>${rows.length} order</b><span class="muted">pada kelompok ini</span></div><div class="tablewrap" style="max-height:320px;overflow:auto"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Uang cair','num')}${th('Ongkir','num')}${th('Komisi afiliasi','num')}${th('Tgl dibuat')}${th('Tgl bayar')}</tr></thead><tbody>${body}</tbody></table></div></td></tr>`;
 }
 function pfCalc(g){
   const s=pfStore[g.key]||{};
@@ -839,23 +859,30 @@ function pfCalc(g){
   return {mo,op,ki,per:g.amt-mo-op-ki,tot:g.sum-(mo+op+ki)*g.n};
 }
 function updateProfit(){
-  const gs=state.pfGroups||[];
+  const all=state.pfAll||[],vis=state.pfGroups||[];
   const T={n:0,c:0,m:0,o:0,k:0,p:0};let miss=0;
-  gs.forEach((g,i)=>{
+  all.forEach(g=>{
     const c=pfCalc(g),s=pfStore[g.key]||{};
     T.n+=g.n;T.c+=g.sum;T.m+=c.mo*g.n;T.o+=c.op*g.n;T.k+=c.ki*g.n;T.p+=c.tot;
     if(!String(s.m||'').trim())miss++;
-    const a=$('pfP'+i),b=$('pfT'+i);
+  });
+  vis.forEach((g,i)=>{
+    const c=pfCalc(g),a=$('pfP'+i),b=$('pfT'+i);
     if(a){a.textContent=rp(c.per);a.className='num '+(c.per<0?'neg':'')}
     if(b){b.textContent=rp(c.tot);b.className='num '+(c.tot<0?'neg':'pos')}
   });
   const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
-  set('pfTn',T.n);set('pfTc',rp(T.c));set('pfTm',rp(T.m));set('pfTo',rp(T.o));set('pfTk',rp(T.k));set('pfTp',rp(T.p));
+  const negSum=pfNegList().reduce((s,r)=>s+r.bayar,0),net=T.p+negSum;
+  const nt=$('pfNet');if(nt){nt.textContent=rp(net);nt.className=net<0?'neg':'pos'}
+  set('pfTn',T.n);set('pfTc',rp(T.c));set('pfTm',rp(T.m));set('pfTo',rp(T.o));set('pfTk',rp(T.k));set('pfTp',rp(T.p));set('pfEmptyN',miss);
   const gt=$('pfGrand');if(gt){gt.textContent=rp(T.p);gt.className=T.p<0?'neg':'pos'}
-  set('pfMiss',miss?(miss+' dari '+gs.length+' kelompok belum diisi modalnya, jadi profitnya dihitung Rp0 (belum bersih) dan tidak masuk total profit.'):'');
+  set('pfMiss',miss?(miss+' dari '+all.length+' kelompok belum diisi modalnya, jadi profitnya dihitung Rp0 (belum bersih) dan tidak masuk total profit.'):'');
 }
 function renderProfit(){
-  const gs=state.pfGroups=profitGroups();
+  const gs=state.pfAll=profitGroups();
+  const noModal=g=>!String((pfStore[g.key]||{}).m||'').trim();
+  const vis=state.pfGroups=pfOnlyEmpty?gs.filter(noModal):gs;
+  const miss0=gs.filter(noModal).length;
   let nNeg=0,vNeg=0,nAdj=0,vAdj=0,nEst=0,vEst=0;
   for(const r of (state.base||[])){
     if(r.kel==='neg'){nNeg++;vNeg+=r.bayar}
@@ -863,10 +890,8 @@ function renderProfit(){
     else if(r.kel==='cair'&&r.adj){nAdj++;vAdj+=r.bayar}
   }
   const help='Order dikelompokkan kalau nama barang dan uang cairnya sama. Isi modal, biaya operasional, dan komisi investor per paket. Kelompok yang modalnya masih kosong dihitung profit Rp0 sampai modal diisi. Kotak kecil ✕ di samping modal untuk qty: modal dan operasional dikali qty, komisi tidak dikali. Mengikuti filter pencarian, produk, dan tanggal (mengabaikan chip status). Isian tersimpan otomatis di browser ini.';
-  const sb=(k,t,tip)=>`<button type="button" class="seg-b ${pfSort===k?'on':''}" data-pfsort="${k}" data-tip="${tip}">${t}</button>`;
   let h=`<div class="pf-top"><div class="pf-title"><b>Hitung profit</b><span class="muted">${esc(periodText())}</span> <i class="tipi" data-tip="${esc(help)}">${ic('info')}</i></div><div class="pf-tools">`+
-    `<div class="seg">${sb('desc','Terbanyak','Urutkan dari total uang cair terbesar')}${sb('asc','Terendah','Urutkan dari total uang cair terkecil')}${sb('nama','A–Z','Urutkan berdasarkan nama')}</div>`+
-    `<label class="sw2" data-tip="Abaikan selisih ongkir dan komisi afiliasi saat mengelompokkan. Total uang cair tetap angka asli."><input type="checkbox" id="pfShip" ${pfIgnoreShip?'checked':''}><span class="track"></span><span>Abaikan ongkir</span></label>`+
+    `<button type="button" class="btn pf-flt ${pfOnlyEmpty?'on':''}" id="pfEmpty" data-tip="Tampilkan hanya kelompok yang modalnya belum diisi">Belum diisi modal <b id="pfEmptyN">${miss0}</b></button>`+
     `<details class="pop"><summary class="ib" data-tip="Isi biaya operasional / komisi investor yang sama untuk semua kelompok">${ic('pencil')}</summary><div class="pop-body"><label>Biaya operasional per paket</label><input type="text" id="pfOpsAll" class="pf-in w" inputmode="decimal" placeholder="mis. 1.500"><label>Komisi investor per paket</label><input type="text" id="pfKomAll" class="pf-in w" inputmode="decimal" placeholder="mis. 2.000"><button class="btn primary" id="pfApply" type="button">Terapkan ke semua</button></div></details>`+
     `<button class="ib" id="pfBackup" type="button" data-tip="Simpan cadangan modal dan semua isian ke file">${ic('save')}</button><button class="ib" id="pfRestore" type="button" data-tip="Muat cadangan dari file">${ic('folder')}</button><input type="file" id="pfRestoreFile" accept=".json,application/json" style="display:none"></div></div>`;
   const prods=[...new Set((state.rows||[]).flatMap(r=>r.bases||[]))].sort();
@@ -877,15 +902,20 @@ function renderProfit(){
     $('profit').innerHTML=h+'<div class="empty">Belum ada order dengan uang cair positif pada data ini. Pastikan file income dan file Semua pesanan sudah diupload.</div>';
     $('pager').innerHTML='';return;
   }
+  if(!vis.length){
+    $('profit').innerHTML=h+'<div class="empty">Semua kelompok sudah diisi modalnya.</div>';
+    $('pager').innerHTML='';return;
+  }
   h+=`<div class="pf-warn" id="pfMiss"></div>`;
   const th=(t,tip,c)=>`<th class="${c||''}" data-tip="${esc(tip)}">${t}</th>`;
-  h+=`<div class="tablewrap"><table class="pf-tbl" style="min-width:1100px"><thead><tr>${th('Nama kelompok','Nama barang. Kalau satu barang punya beberapa nominal, diberi (1), (2), dst.')}${th('Order','Jumlah order dalam kelompok ini','num')}${th('Cair / order','Rata-rata uang cair per order. Di bawahnya: kisaran terendah sampai tertinggi.','num')}${th('Total cair','Total uang cair semua order di kelompok ini','num')}${th('Modal × qty','Modal per paket. Kotak kecil = qty (kali berapa); qty mengalikan modal dan operasional. Kosong = 1.','num')}${th('Operasional','Biaya operasional per paket (ikut dikali qty)','num')}${th('Komisi investor','Komisi investor per paket (tidak dikali qty)','num')}${th('Profit / paket','Rata-rata profit per paket = uang cair − modal×qty − operasional×qty − komisi','num')}${th('Total profit','Profit per paket × jumlah order','num')}</tr></thead><tbody>`;
-  gs.forEach((g,i)=>{
+  const thS=(t,tip,key)=>{const on=(d)=>pfSortKey===key&&pfSortDir===d?'on':'';return `<th class="num" data-tip="${esc(tip)}"><span class="pf-th">${t}<span class="pf-sorts"><button type="button" class="${on(-1)}" data-pfsort="${key}:-1" data-tip="Urutkan tertinggi dulu">▼</button><button type="button" class="${on(1)}" data-pfsort="${key}:1" data-tip="Urutkan terendah dulu">▲</button></span></span></th>`};
+  h+=`<div class="tablewrap"><table class="pf-tbl" style="min-width:1100px"><thead><tr>${th('Nama kelompok','Nama barang. Kalau satu barang punya beberapa nominal, diberi (1), (2), dst.')}${thS('Order','Jumlah order dalam kelompok ini','n')}${th('Cair / order','Rata-rata uang cair per order. Di bawahnya: kisaran terendah sampai tertinggi.','num')}${thS('Total cair','Total uang cair semua order di kelompok ini','sum')}${th('Modal × qty','Modal per paket. Kotak kecil = qty (kali berapa); qty mengalikan modal dan operasional. Kosong = 1.','num')}${th('Operasional','Biaya operasional per paket (ikut dikali qty)','num')}${th('Komisi investor','Komisi investor per paket (tidak dikali qty)','num')}${thS('Profit / paket','Rata-rata profit per paket = uang cair − modal×qty − operasional×qty − komisi','per')}${thS('Total profit','Profit per paket × jumlah order','tot')}</tr></thead><tbody>`;
+  vis.forEach((g,i)=>{
     const s=pfStore[g.key]||{};
     const multi=g.label!==g.name;
     const rng=Math.round(g.min)!==Math.round(g.max)?`<br><small class="zero">${rp(g.min)} – ${rp(g.max)}</small>`:'';
     h+=`<tr><td class="nm">${esc(g.label)}<div class="acts"><button type="button" class="ib sm ${pfOpen.has(g.key)?'on':''}" data-act="ids" data-i="${i}" data-tip="${esc(idTip(pfOpen.has(g.key),g.n))}">${ic('list')}</button>${multi?`<button type="button" class="ib sm" data-act="copy" data-i="${i}" data-tip="Salin modal, operasional, dan komisi ke semua nominal lain dari barang ini (qty tidak ikut)">${ic('copy')}</button>`:''}</div></td><td class="num">${g.n}</td><td class="num">${rp(g.amt)}${rng}</td><td class="num">${rp(g.sum)}</td>`+
-      `<td class="num" style="white-space:nowrap"><input class="pf-in" type="text" inputmode="decimal" data-i="${i}" data-f="m" value="${esc(s.m||'')}" placeholder="0"> <span class="zero">×</span> <input class="pf-in pf-q" type="text" inputmode="numeric" data-i="${i}" data-f="q" value="${esc(s.q||'')}" placeholder="1"></td>`+
+      `<td class="num" style="white-space:nowrap"><input class="pf-in pf-m" type="text" inputmode="decimal" data-i="${i}" data-f="m" value="${esc(s.m||'')}" placeholder="0"> <span class="zero">×</span> <input class="pf-in pf-q" type="text" inputmode="numeric" data-i="${i}" data-f="q" value="${esc(s.q||'')}" placeholder="1"></td>`+
       `<td class="num"><input class="pf-in" type="text" inputmode="decimal" data-i="${i}" data-f="o" value="${esc(s.o||'')}" placeholder="0"></td>`+
       `<td class="num"><input class="pf-in" type="text" inputmode="decimal" data-i="${i}" data-f="k" value="${esc(s.k||'')}" placeholder="0"></td>`+
       `<td class="num" id="pfP${i}"></td><td class="num" id="pfT${i}"></td></tr>`+(pfOpen.has(g.key)?idsRow(g):'');
@@ -893,8 +923,11 @@ function renderProfit(){
   h+=`<tr class="pf-total"><td>TOTAL</td><td class="num" id="pfTn"></td><td class="num"></td><td class="num" id="pfTc"></td><td class="num" id="pfTm" data-tip="Total modal (modal × qty × jumlah order)"></td><td class="num" id="pfTo" data-tip="Total operasional (operasional × qty × jumlah order)"></td><td class="num" id="pfTk" data-tip="Total komisi investor (komisi × jumlah order)"></td><td class="num"></td><td class="num" id="pfTp"></td></tr>`;
   h+=`</tbody></table></div>`;
   h+=`<div class="pf-grand"><span>Total profit semua kelompok <i class="tipi" data-tip="Total uang cair − total modal − total biaya operasional − total komisi investor">${ic('info')}</i></span><strong id="pfGrand"></strong></div>`;
+  h+=`<div class="pf-grand" style="margin-top:8px"><span>Potongan negatif <small class="muted">${nNeg} order, nominal langsung (tanpa modal)</small> <button type="button" class="ib sm ${pfNegOpen?'on':''}" data-act="negtoggle" data-tip="Lihat order ID dan nominal potongannya">${ic('list')}</button></span><strong class="neg">${rp(vNeg)}</strong></div>`;
+  if(pfNegOpen)h+=negBox();
+  h+=`<div class="pf-grand" style="margin-top:8px"><span>Untung bersih <i class="tipi" data-tip="Total profit semua kelompok + potongan negatif">${ic('info')}</i></span><strong id="pfNet"></strong></div>`;
   const info=[];
-  if(nNeg)info.push(`${nNeg} order potongan negatif (${rp(vNeg)}) tidak ikut dikelompokkan dan tidak mengurangi profit di sini`);
+  if(nNeg)info.push(`${nNeg} order potongan negatif (${rp(vNeg)}) tidak ikut dikelompokkan, tapi dikurangkan langsung di Untung bersih`);
   if(nAdj)info.push(`${nAdj} penggantian dana platform (${rp(vAdj)}) tidak ikut dikelompokkan`);
   if(nEst)info.push(`${nEst} order estimasi/Dikirim (${rp(vEst)}) belum cair, tidak dihitung`);
   if(info.length)h+=`<div class="rnote" style="margin-top:10px">Info: ${esc(info.join('; '))}.</div>`;
@@ -906,19 +939,16 @@ function profitAoa(){
   const gs=profitGroups(),E='';
   const rows=gs.map(g=>{const c=pfCalc(g);return [g.label,g.n,g.amt,g.sum,c.mo,c.op,c.ki,c.per,c.tot]});
   const T=gs.reduce((a,g)=>{a.n+=g.n;a.c+=g.sum;a.p+=pfCalc(g).tot;return a},{n:0,c:0,p:0});
+  const negs=pfNegList(),negSum=negs.reduce((s,r)=>s+r.bayar,0);
   return [['Nama Kelompok','Jumlah Order','Rata-rata Uang Cair per Order','Total Uang Cair','Modal per Paket (sudah × qty)','Biaya Operasional per Paket (sudah × qty)','Komisi Investor per Paket','Profit per Paket (rata-rata)','Total Profit'],
-    ...rows,['TOTAL',T.n,E,T.c,E,E,E,E,T.p]];
+    ...rows,['TOTAL',T.n,E,T.c,E,E,E,E,T.p],
+    ['POTONGAN NEGATIF (nominal langsung)',negs.length,E,E,E,E,E,E,negSum],['UNTUNG BERSIH',E,E,E,E,E,E,E,T.p+negSum]];
 }
 $('profit').addEventListener('input',e=>{
   const el=e.target.closest('.pf-in[data-i]');if(!el)return;
   const g=(state.pfGroups||[])[+el.dataset.i];if(!g)return;
   (pfStore[g.key]||(pfStore[g.key]={}))[el.dataset.f]=el.value;
   pfSave();updateProfit();
-});
-$('profit').addEventListener('change',e=>{
-  if(e.target.id!=='pfShip')return;
-  pfIgnoreShip=e.target.checked;
-  renderProfit();
 });
 $('profit').addEventListener('change',e=>{
   if(e.target.id!=='pfRestoreFile')return;
@@ -930,7 +960,6 @@ $('profit').addEventListener('change',e=>{
       if(!d||d.app!=='rekap-profit'||!d.isian||typeof d.isian!=='object')throw new Error('format');
       Object.assign(pfStore,d.isian);
       if(Array.isArray(d.aturanTanggal))pfRules=d.aturanTanggal;
-      if(typeof d.abaikanOngkir==='boolean')pfIgnoreShip=d.abaikanOngkir;
       pfSave();pfRulesSave();
       renderProfit();toast('Cadangan dimuat: '+Object.keys(d.isian).length+' isian kelompok');
     }catch(x){alert('File cadangan tidak valid.')}
@@ -945,12 +974,21 @@ $('profit').addEventListener('change',e=>{
 });
 $('profit').addEventListener('click',e=>{
   if(e.target.closest('#pfBackup')){
-    const data={app:'rekap-profit',versi:1,dibuat:new Date().toISOString(),isian:pfStore,aturanTanggal:pfRules,abaikanOngkir:pfIgnoreShip};
+    const data={app:'rekap-profit',versi:1,dibuat:new Date().toISOString(),isian:pfStore,aturanTanggal:pfRules};
     const blob=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cadangan-modal-profit.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
     return;
   }
   if(e.target.closest('#pfRestore')){$('pfRestoreFile').click();return}
+  const ngb=e.target.closest('[data-act=negtoggle]');
+  if(ngb){
+    pfNegOpen=!pfNegOpen;
+    const box=$('profit').querySelector('.pf-negbox');
+    if(box)box.remove();
+    if(pfNegOpen)ngb.closest('.pf-grand').insertAdjacentHTML('afterend',negBox());
+    ngb.classList.toggle('on',pfNegOpen);hideTip();
+    return;
+  }
   const idb=e.target.closest('[data-act=ids]');
   if(idb){
     const g=(state.pfGroups||[])[+idb.dataset.i];if(!g)return;
@@ -960,12 +998,10 @@ $('profit').addEventListener('click',e=>{
     idb.classList.toggle('on',pfOpen.has(g.key));idb.setAttribute('data-tip',idTip(pfOpen.has(g.key),g.n));hideTip();
     return;
   }
-  const cid=e.target.closest('[data-act=copyids]');
+  const cid=e.target.closest('[data-act=copyone]');
   if(cid){
-    const g=(state.pfGroups||[])[+cid.dataset.i];if(!g)return;
-    const rows=g.rows.slice().sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
-    const txt=rows.map(r=>cid.dataset.m==='id'?r.id:r.id+'\t'+Math.round(r.bayar)+'\t'+showDate(r.tp)).join('\n');
-    const done=()=>toast('Tersalin: '+rows.length+' order');
+    const txt=cid.dataset.id;
+    const done=()=>toast('Order ID tersalin: '+txt);
     const legacy=()=>{const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand('copy')}catch(x){}ta.remove();ok?done():toast('Gagal menyalin, coba lagi')};
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,legacy);else legacy();
     return;
@@ -974,7 +1010,13 @@ $('profit').addEventListener('click',e=>{
   const dl=e.target.closest('[data-rdel]');
   if(dl){pfRules.splice(+dl.dataset.rdel,1);pfRulesSave();renderProfit();return}
   const so=e.target.closest('[data-pfsort]');
-  if(so){pfSort=so.dataset.pfsort;renderProfit();return}
+  if(so){
+    const [k,d]=so.dataset.pfsort.split(':'),dd=+d;
+    if(pfSortKey===k&&pfSortDir===dd)pfSortKey='';   // klik lagi = batal urut, kembali ke A–Z
+    else{pfSortKey=k;pfSortDir=dd}
+    hideTip();renderProfit();return;
+  }
+  if(e.target.closest('#pfEmpty')){pfOnlyEmpty=!pfOnlyEmpty;hideTip();renderProfit();return}
   const cp=e.target.closest('[data-act=copy]');
   if(cp){
     const gs=state.pfGroups||[],src=gs[+cp.dataset.i];if(!src)return;
@@ -991,6 +1033,25 @@ $('profit').addEventListener('click',e=>{
   (state.pfGroups||[]).forEach(g=>{const t=pfStore[g.key]||(pfStore[g.key]={});if(v.trim())t.o=v;if(k.trim())t.k=k});
   pfSave();renderProfit();
 });
+
+/* tutup laci daftar order ID kalau klik di luar laci (atau tekan Esc) */
+function pfCloseIds(){
+  if(!pfOpen.size&&!pfNegOpen)return;
+  pfOpen.clear();pfNegOpen=false;
+  document.querySelectorAll('#profit [data-act=negtoggle]').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('#profit .pf-ids').forEach(el=>el.remove());
+  document.querySelectorAll('#profit [data-act=ids]').forEach(b=>{
+    b.classList.remove('on');
+    const g=(state.pfGroups||[])[+b.dataset.i];
+    if(g)b.setAttribute('data-tip',idTip(false,g.n));
+  });
+}
+document.addEventListener('click',e=>{
+  if((!pfOpen.size&&!pfNegOpen)||state.tab!=='profit')return;
+  if(e.target.closest('.pf-ids,[data-act=ids],[data-act=negtoggle]'))return;
+  pfCloseIds();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')pfCloseIds()});
 
 /* ---------- event ---------- */
 let t;
