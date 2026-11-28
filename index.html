@@ -846,11 +846,19 @@ function negBox(){
   return `<div class="pf-ids pf-negbox"><div style="margin-bottom:8px"><b>${l.length} order</b> <span class="muted">potongan negatif, urut dari yang terbesar</span></div><div class="tablewrap" style="max-height:360px;overflow:auto"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Potongan','num')}${th('Tgl bayar')}${th('Produk')}</tr></thead><tbody>${body}</tbody></table></div></div>`;
 }
 const idTip=(open,n)=>open?'Sembunyikan daftar order':'Lihat '+n+' order ID beserta uang cairnya';
+let pfOngSort=0;   // urutan daftar order: 0 = order ID, -1 = ongkir termahal dulu, 1 = termurah dulu
+function idsBody(g){
+  const byId=(x,y)=>x.id<y.id?-1:x.id>y.id?1:0;
+  // ongkir tersimpan negatif, jadi biayanya = -ong; order tanpa ongkir (-) selalu di paling bawah
+  const byOng=(x,y)=>(!x.ong-!y.ong)||(x.ong-y.ong)*-pfOngSort||byId(x,y);
+  const rows=g.rows.slice().sort(pfOngSort?byOng:byId);
+  return rows.map(r=>`<tr><td class="id">${esc(r.id)}<button type="button" class="ib sm" style="margin-left:8px;vertical-align:middle" data-act="copyone" data-id="${esc(r.id)}" data-tip="Salin order ID">${ic('copy')}</button></td><td class="num">${rp(r.bayar)}</td><td class="num">${r.ong?rp(r.ong):'-'}</td><td class="num">${r.aff?rp(r.aff):'-'}</td><td>${showDate(r.tb)||'-'}</td><td>${showDate(r.tp)||'-'}</td></tr>`).join('');
+}
 function idsRow(g){
-  const rows=g.rows.slice().sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
-  const body=rows.map(r=>`<tr><td class="id">${esc(r.id)}<button type="button" class="ib sm" style="margin-left:8px;vertical-align:middle" data-act="copyone" data-id="${esc(r.id)}" data-tip="Salin order ID">${ic('copy')}</button></td><td class="num">${rp(r.bayar)}</td><td class="num">${r.ong?rp(r.ong):'-'}</td><td class="num">${r.aff?rp(r.aff):'-'}</td><td>${showDate(r.tb)||'-'}</td><td>${showDate(r.tp)||'-'}</td></tr>`).join('');
   const th=(t,c)=>`<th class="${c||''}" style="cursor:default">${t}</th>`;
-  return `<tr class="pf-ids"><td colspan="9"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><b>${rows.length} order</b><span class="muted">pada kelompok ini</span></div><div class="tablewrap" style="max-height:320px;overflow:auto"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Uang cair','num')}${th('Ongkir','num')}${th('Komisi afiliasi','num')}${th('Tgl dibuat')}${th('Tgl bayar')}</tr></thead><tbody>${body}</tbody></table></div></td></tr>`;
+  const ob=(d,ic,tip)=>`<button type="button" class="${pfOngSort===d?'on':''}" data-ongsort="${d}" data-tip="${tip}">${ic}</button>`;
+  const thOng=`<th class="num" style="cursor:default"><span class="pf-th">Ongkir<span class="pf-sorts">${ob(-1,'▼','Ongkir termahal dulu')}${ob(1,'▲','Ongkir termurah dulu')}</span></span></th>`;
+  return `<tr class="pf-ids"><td colspan="9"><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><b>${g.rows.length} order</b><span class="muted">pada kelompok ini</span></div><div class="tablewrap" style="max-height:320px;overflow:auto"><table style="min-width:0"><thead><tr>${th('Order ID')}${th('Uang cair','num')}${thOng}${th('Komisi afiliasi','num')}${th('Tgl dibuat')}${th('Tgl bayar')}</tr></thead><tbody data-key="${esc(g.key)}">${idsBody(g)}</tbody></table></div></td></tr>`;
 }
 function pfCalc(g){
   const s=pfStore[g.key]||{};
@@ -1009,6 +1017,17 @@ $('profit').addEventListener('click',e=>{
   if(e.target.closest('#pfRuleAdd')){pfRules.push({name:'',date:''});pfRulesOpen=true;pfRulesSave();renderProfit();return}
   const dl=e.target.closest('[data-rdel]');
   if(dl){pfRules.splice(+dl.dataset.rdel,1);pfRulesSave();renderProfit();return}
+  const os=e.target.closest('[data-ongsort]');
+  if(os){
+    const d=+os.dataset.ongsort;
+    pfOngSort=pfOngSort===d?0:d;   // klik lagi = batal, kembali urut order ID
+    $('profit').querySelectorAll('tbody[data-key]').forEach(tb=>{
+      const g=(state.pfGroups||[]).find(x=>esc(x.key)===esc(tb.dataset.key));
+      if(g){tb.innerHTML=idsBody(g);tb.closest('.tablewrap').scrollTop=0}
+    });
+    $('profit').querySelectorAll('[data-ongsort]').forEach(b=>b.classList.toggle('on',+b.dataset.ongsort===pfOngSort));
+    hideTip();return;
+  }
   const so=e.target.closest('[data-pfsort]');
   if(so){
     const [k,d]=so.dataset.pfsort.split(':'),dd=+d;
